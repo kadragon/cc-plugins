@@ -1,0 +1,17 @@
+{
+  "name": "cc-plugins",
+  "owner": {
+    "name": "kadragon"
+  },
+  "metadata": {
+    "description": "Personal Claude Code plugins by kadragon"
+  },
+  "plugins": [
+    {
+      "name": "cc-plugins",
+      "source": ".",
+      "description": "Personal Claude Code skills and agents by kadragon",
+      "version": "1.0.0"
+    }
+  ]
+}
