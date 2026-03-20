@@ -1,3 +1,8 @@
+---
+name: dev-review-cycle
+description: Post-development workflow that creates a PR, collects reviews from multiple sources (Claude Code, Gemini, Codex), consolidates feedback, applies improvements, waits for CI, and merges — all in one continuous flow. Use when the user wants to review and merge completed work, run a full PR cycle, or says "review cycle".
+---
+
 # Dev Review Cycle
 
 Post-development workflow that creates a PR, collects reviews from multiple sources, consolidates feedback, and applies improvements — all in one continuous flow.
@@ -88,7 +93,7 @@ Run the bundled polling script via background Bash. The script handles the polli
 
 ```bash
 # run_in_background: true, timeout: 600000
-bash ${CLAUDE_PLUGIN_ROOT}/scripts/poll_gemini_review.sh "${OWNER_REPO}" <PR_NUMBER> 10 60
+bash ${CLAUDE_PLUGIN_ROOT}/skills/dev-review-cycle/scripts/poll_gemini_review.sh "${OWNER_REPO}" <PR_NUMBER> 10 60
 ```
 
 If the script exits with code 2 (timeout), proceed without Gemini review.
