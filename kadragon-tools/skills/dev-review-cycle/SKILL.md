@@ -130,12 +130,33 @@ Analyze all collected reviews together:
 3. Consolidate remaining suggestions into a single prioritized list.
 4. Categorize each suggestion: bug fix, performance, readability, style, architecture.
 5. Discard suggestions that conflict with project conventions.
-6. Present the consolidated list as a table with source attribution (Claude / Gemini / Codex).
-7. Clearly note which suggestions are recommended to apply and which are recommended to skip (with reasons).
+6. **Scope classification** — For each remaining suggestion, determine whether it falls within the current PR's scope:
+   - **In-scope:** Directly related to the files and logic changed in this PR.
+   - **Out-of-scope:** Valid improvement but touches unrelated code, requires a separate feature branch, or is an architectural concern beyond this PR's purpose.
+7. Present the consolidated list as a table with source attribution (Claude / Gemini / Codex). Include a "Scope" column (In / Out) so the user can see the classification at a glance.
+8. Clearly note which suggestions are recommended to apply and which are recommended to skip (with reasons).
 
-**STOP here and ask the user for confirmation.** The user may approve all, reject some, or request modifications. Proceed to Step 4 only after user approval.
+**STOP here and ask the user for confirmation.** The user may approve all, reject some, change scope classifications, or request modifications. Proceed to Step 4 only after user approval.
 
-If no actionable suggestions exist, report that reviews found no issues and skip directly to Step 6.
+#### 3-1: Record Out-of-Scope Items in plan.md
+
+After user confirmation, if any suggestions were classified as out-of-scope (either by the initial classification or by user decision):
+
+1. Read the existing `plan.md` in the project root. If it does not exist, create one.
+2. Append a new section under `## Review Backlog` with the following format:
+
+```markdown
+## Review Backlog
+
+### PR #<PR_NUMBER> — <PR title> (<date>)
+
+- [ ] <suggestion summary> (source: <reviewer>) — <file:line if applicable>
+```
+
+3. Each out-of-scope suggestion becomes a `- [ ]` item so it can be tracked and addressed in a future cycle.
+4. If a `## Review Backlog` section already exists, append the new PR's items under it — do not overwrite previous entries.
+
+If no actionable in-scope suggestions exist, report that reviews found no in-scope issues and skip directly to Step 6.
 
 ### Step 4: Apply Improvements
 
