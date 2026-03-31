@@ -26,7 +26,15 @@ GEMINI_AVAILABLE=false
 command -v gemini >/dev/null 2>&1 && GEMINI_AVAILABLE=true
 
 CODEX_AVAILABLE=false
-command -v codex >/dev/null 2>&1 && CODEX_AVAILABLE=true
+CODEX_MODE=""
+CODEX_COMPANION=$(find ~/.claude/plugins -name "codex-companion.mjs" -path "*/codex/*" 2>/dev/null | head -1)
+if [ -n "$CODEX_COMPANION" ] && command -v codex >/dev/null 2>&1; then
+  CODEX_AVAILABLE=true
+  CODEX_MODE="plugin"
+elif command -v codex >/dev/null 2>&1; then
+  CODEX_AVAILABLE=true
+  CODEX_MODE="cli"
+fi
 ```
 
 If `gh auth status` fails, stop the workflow and report the error.
@@ -151,14 +159,23 @@ REVIEW_PROMPT
 
 If the command fails, proceed without this review.
 
-#### 2-3: Codex CLI Review
+#### 2-3: Codex Review
 
 Skip this step if `CODEX_AVAILABLE` is false from pre-flight checks.
 
-```bash
-# run_in_background: true, timeout: 600000
-codex review --base ${BASE_BRANCH}
-```
+Choose the review command based on `CODEX_MODE` detected in pre-flight:
+
+- **`plugin`** — Uses the `codex-companion.mjs` from the [openai-codex marketplace plugin](https://github.com/openai/codex-plugin-cc). Preferred when available as it provides richer review output.
+  ```bash
+  # run_in_background: true, timeout: 600000
+  node "$CODEX_COMPANION" review --base ${BASE_BRANCH}
+  ```
+
+- **`cli`** — Falls back to the standalone Codex CLI.
+  ```bash
+  # run_in_background: true, timeout: 600000
+  codex review --base ${BASE_BRANCH}
+  ```
 
 If the command fails, proceed without this review.
 
@@ -308,7 +325,7 @@ To run a subsequent review cycle on the same PR (e.g., after applying changes an
 - **Pre-flight fails (gh not authenticated):** Stop the workflow. Report the error and suggest running `gh auth login`.
 - **Step 1 fails:** Stop the workflow and report the error.
 - **Gemini CLI not available or fails:** Inform the user and proceed with available reviews.
-- **Codex CLI not available or fails:** Inform the user and proceed with available reviews.
+- **Codex plugin not available or fails:** Inform the user and proceed with available reviews.
 - **No actionable suggestions from reviews:** Report that reviews found no issues. Skip Steps 4–5 and proceed directly to Step 6 (CI wait and merge).
 - **Push fails (Step 5):** Report the error and suggest the user resolve it manually.
 - **CI fails 3 times (Step 6):** Stop the workflow and ask the user for guidance.
