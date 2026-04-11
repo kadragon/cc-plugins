@@ -55,29 +55,41 @@ If already on a non-base branch, skip this step.
 
 ### Step 1: Commit (and Create PR unless `--no-hub`)
 
+Delegate commit (and push/PR) to a **subagent** to keep the main workflow context clean.
+
 **When `--no-hub` is set:**
 
-Use the Skill tool to invoke `commit-commands:commit` to commit changes locally. No push, no PR.
-
 ```
-Skill tool parameters:
-  skill: "commit-commands:commit"
+Agent tool parameters:
+  description: "Commit changes locally"
+  prompt: |
+    Commit all staged and unstaged changes in the current repository.
+    1. Run `git status` and `git diff HEAD` to understand the changes.
+    2. Run `git log --oneline -10` to match existing commit style.
+    3. Stage relevant files with `git add` and create a single commit.
+    Report the commit hash and message when done.
 ```
 
-Immediately proceed to Step 2 after committing.
+Immediately proceed to Step 2 after the subagent returns.
 
 **When `--no-hub` is NOT set:**
 
-Use the Skill tool directly to invoke `commit-commands:commit-push-pr`. Extract the PR number and URL from the skill's output.
-
 ```
-Skill tool parameters:
-  skill: "commit-commands:commit-push-pr"
+Agent tool parameters:
+  description: "Commit, push, and create PR"
+  prompt: |
+    Commit, push, and create a PR for the current changes.
+    1. Run `git status`, `git diff HEAD`, and `git branch --show-current`.
+    2. If on the base branch (main/master), create a new feature branch.
+    3. Stage relevant files and create a single commit.
+    4. Push the branch to origin.
+    5. Create a pull request using `gh pr create`.
+    Report the PR number and URL when done.
 ```
 
-If the skill reports failure, stop the workflow and report the error.
+Extract the PR number and URL from the subagent's result. If the subagent reports failure, stop the workflow and report the error.
 
-**Do NOT pause or ask the user after PR creation.** The PR number and URL are available in the skill output — extract them and immediately proceed to Step 2. There is no confirmation needed here; the PR is a draft artifact that will be reviewed in subsequent steps.
+**Do NOT pause or ask the user after PR creation.** Extract the PR number and URL from the subagent result and immediately proceed to Step 2.
 
 ### Step 2: Collect Reviews
 
@@ -155,20 +167,40 @@ After improvements are applied and tests pass, immediately proceed to Step 5.
 
 ### Step 5: Commit (and Push unless `--no-hub`)
 
-After all improvements are applied:
-
-1. Stage only the modified files.
-2. Create a commit following the project's commit conventions (check CLAUDE.md / AGENTS.md for the expected format). Reference the PR number in the message (if a PR exists).
+Delegate commit (and push) to a **subagent** to keep the main workflow context clean.
 
 **When `--no-hub` is NOT set:**
 
-3. Push to the same branch as the PR. The existing PR from Step 1 receives the pushed improvements. Do not create a new PR.
-4. After pushing, immediately proceed to Step 6.
+```
+Agent tool parameters:
+  description: "Commit and push review improvements"
+  prompt: |
+    Commit and push the review improvements applied to this branch.
+    1. Run `git status` and `git diff HEAD` to see the changes.
+    2. Check CLAUDE.md / AGENTS.md for project commit conventions.
+    3. Stage only the modified files.
+    4. Create a single commit. Reference PR #${PR_NUMBER} in the message.
+    5. Push to origin (same branch). Do NOT create a new PR.
+    Report the commit hash when done.
+```
+
+After the subagent returns, immediately proceed to Step 6.
 
 **When `--no-hub` is set:**
 
-3. Do NOT push. The commit stays local.
-4. Skip Step 6 entirely. Report the review summary and applied improvements to the user. The workflow ends here.
+```
+Agent tool parameters:
+  description: "Commit review improvements locally"
+  prompt: |
+    Commit the review improvements locally (do NOT push).
+    1. Run `git status` and `git diff HEAD` to see the changes.
+    2. Check CLAUDE.md / AGENTS.md for project commit conventions.
+    3. Stage only the modified files.
+    4. Create a single commit.
+    Do NOT push. Report the commit hash when done.
+```
+
+After the subagent returns, skip Step 6 entirely. Report the review summary and applied improvements to the user. The workflow ends here.
 
 ### Step 6: Wait for CI and Merge (skip when `--no-hub`)
 
