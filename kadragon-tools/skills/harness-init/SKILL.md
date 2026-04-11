@@ -19,6 +19,8 @@ Three sources inform this harness design:
 
 The key insight: **if the agent struggles, that's a harness defect**, not an agent defect. Fix the environment, not the prompt.
 
+**Simplification principle:** Find the simplest solution possible, and only increase complexity when needed. Every harness component encodes an assumption about what the model can't do alone — start minimal and add scaffolding only when you observe concrete failures. A harness built for the weakest model you've ever used will slow down a stronger model.
+
 ## When to Use
 
 - Setting up a new repository for AI-assisted development
@@ -66,6 +68,8 @@ Golden principles are the 3-7 invariants that, if violated, cause the most damag
 
 Read `references/golden-principles-guide.md` for examples across different tech stacks.
 
+**Delegation is a golden principle candidate.** Agents overestimate their understanding and skip delegation when it's "merely recommended." If the project uses sub-agents, include a delegation discipline principle with objective, measurable triggers — not subjective ones like "unfamiliar module." See the "Delegation Discipline" section in `references/golden-principles-guide.md` for examples.
+
 Ask the user: "What are the rules that, if broken, cause the most pain in this codebase?" The answer seeds the golden principles.
 
 ### Step 3: Create AGENTS.md
@@ -101,6 +105,8 @@ See `examples/agents-md-example.md` for a complete reference.
 ## Language Policy
 ```
 
+**Context anxiety warning:** Models on lengthy tasks may prematurely wrap up work or cut corners as context fills. AGENTS.md should include a note directing the agent to prefer context resets over compaction and to write `handoff-{feature}.md` at the start of multi-session work (not when context is already degraded). See `references/workflows-template.md` → "Context Anxiety" for countermeasures.
+
 **What NOT to put in AGENTS.md:** workflow details, delegation details, evaluation criteria, architecture deep dives, API references. These belong in `docs/`.
 
 ### Step 4: Create docs/ Knowledge Base
@@ -114,13 +120,13 @@ Project structure, layer rules, module boundaries, dependency directions. Read `
 Naming patterns, coding standards, framework-specific rules. Only include conventions that agents frequently get wrong — do not duplicate the linter. Read `references/conventions-template.md` for the template.
 
 #### `docs/workflows.md`
-How work gets done. Read `references/workflows-template.md` for the standard six workflows (plan/code/draft/constrain/sweep/explore) and adapt to the project.
+How work gets done. Read `references/workflows-template.md` for the standard six workflows (plan/code/draft/constrain/sweep/explore) and adapt to the project. Each workflow that modifies code has explicit delegation checkpoints built into its steps — delegation is not a separate document to "consult" but a mandatory gate within the workflow itself.
 
 #### `docs/delegation.md`
-Sub-agent routing table and context manifest. Read `references/delegation-template.md` for the full template including model selection per role.
+Sub-agent routing table and context manifest. Read `references/delegation-template.md` for the full template including model selection per role. All triggers in the routing table must be **objective and measurable** — never use subjective conditions like "unfamiliar module" that the agent can rationalize away.
 
 #### `docs/eval-criteria.md`
-Product-level evaluation criteria with the Generator-Evaluator separation principle. Read `references/eval-criteria-template.md` for the template.
+Product-level evaluation criteria with the Generator-Evaluator separation principle. Includes the Sprint Contract pattern (pre-implementation "done" negotiation), evaluator self-deception countermeasures, and calibration methodology. Read `references/eval-criteria-template.md` for the template.
 
 #### `docs/runbook.md`
 Build, test, deploy commands. Common failure modes and fixes. Environment setup. Read `references/runbook-template.md` for the template.
@@ -129,7 +135,7 @@ Build, test, deploy commands. Common failure modes and fixes. Environment setup.
 
 Copy `scripts/sweep.sh` into the target project's `tools/` directory and adapt the `# ADAPT:` sections. Read `references/sweep-template.md` for ecosystem-specific adaptation guidance.
 
-The sweep script performs five checks: lint scan, doc drift, golden principle violations, harness freshness, and finding report.
+The sweep script performs five checks: lint scan, doc drift, golden principle violations, harness freshness, and finding report. It also includes a periodic **load-bearing assessment** — stress-testing whether each harness component still compensates for a real model limitation. See `references/sweep-template.md` → "Load-Bearing Assessment" for the methodology.
 
 ### Step 6: Improve Lint for Agent Readability
 

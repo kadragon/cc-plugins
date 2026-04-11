@@ -16,13 +16,34 @@ Skip for trivial features.
 
 ## `code` — Implementation
 
-The primary cycle for behavioral changes.
+The primary cycle for behavioral changes. Delegation checkpoints are **named steps** in this workflow — they are not optional "consult if needed" references.
 
-**Adapt the cycle to the project's testing infrastructure:**
+**Step 1: Scope check (delegation gate)**
+Check objective delegation triggers from `docs/delegation.md`:
+- Does the target module exceed the file/LOC threshold? → Delegate to Analysis agent before proceeding.
+- Does the change touch ≥3 directories? → Delegate to Architecture analysis agent.
+- Is this the first edit in this directory this session? → Delegate to Explore agent.
+- Does the file match a critical path pattern? → Delegate to Analysis agent.
+If none of the triggers match, proceed directly.
 
+**Step 2: Sprint Contract (negotiation with evaluator)**
+Before writing code, define what "done" looks like in concrete, testable terms. If the project uses a separate evaluator agent, the generator proposes scope and the evaluator confirms the criteria are testable. If no separate evaluator, write the contract yourself — the discipline of writing testable criteria before coding is what matters.
+
+See `docs/eval-criteria.md` → "Sprint Contract" for the template.
+
+Adapt testing approach to the project:
 - **Projects with test frameworks:** Red → Green → Refactor (TDD cycle)
 - **Projects without tests:** Reference implementation → Implement → Lint/verify → Manual check
 - **Legacy systems:** Read existing patterns → Implement following patterns → Cross-verify consistency
+
+**Step 3: Implement**
+For changes spanning ≤2 files, the orchestrator may implement directly. For larger changes, delegate to Implementation agent with spec + conventions + reference files.
+
+**Step 4: Post-implementation QA (mandatory delegation)**
+Always delegate to QA/verification agent. The agent that implemented must NOT verify its own work. No exceptions. The evaluator grades against the sprint contract criteria, not vague impressions.
+
+**Step 5: Feature-complete evaluation (mandatory delegation)**
+When the feature is done, delegate to Product evaluator with done-when criteria and `docs/eval-criteria.md`. Generator-Evaluator separation is non-negotiable.
 
 **`backlog.md` format:**
 
@@ -35,8 +56,6 @@ The primary cycle for behavioral changes.
 - [ ] Simplest case
 - [ ] Next case builds on previous
 ```
-
-**Delegation during code:** Consult `docs/delegation.md` for which sub-agents to invoke at each step.
 
 ## `draft` — Documentation
 
@@ -77,3 +96,34 @@ While in a primary workflow, these side-effects are allowed without switching:
 | `sweep` | Fix trivial `[doc]` items inline |
 
 **Not permitted:** Writing production code during `draft` or `sweep`.
+
+---
+
+## Context Anxiety
+
+Models lose coherence on lengthy tasks as context fills. Some exhibit **context anxiety** — prematurely wrapping up work, cutting corners, or declaring features "done" as they approach perceived context limits. Symptoms:
+
+- Implementing the first 3 of 8 features fully, then stub-implementing the rest
+- Suddenly summarizing remaining work instead of doing it
+- Dropping quality noticeably in later parts of a long session
+
+### Countermeasures
+
+1. **Context resets over compaction.** When context fills during large tasks, prefer a full reset with a structured handoff file over in-place compaction. A reset provides a clean slate; compaction preserves continuity but doesn't resolve the anxiety behavior.
+
+2. **Handoff files for multi-session work.** Write `handoff-{feature}.md` at the **start** of multi-session work (when context is fresh and the plan is clear), not when context is already degraded. Delete when the feature is complete.
+
+3. **Sprint decomposition for weaker models.** If the model can't sustain coherent work for >1 hour, decompose into sprints (one feature at a time) with QA gates between them. Stronger models that maintain quality over longer sessions can work in continuous mode.
+
+4. **Monitor for the pattern.** If later features in a backlog consistently have lower quality than earlier ones, that's context anxiety — add more reset points.
+
+## Continuous Session vs Sprint-Based
+
+This is a model-capability-dependent design choice, not a universal rule.
+
+| Approach | When to use | Trade-off |
+|----------|-------------|-----------|
+| **Sprint-based** | Model loses coherence after ~30-60min; complex multi-feature builds | More overhead (contract negotiation, handoffs), but sustained quality |
+| **Continuous** | Model sustains quality for hours; single-feature work | Less overhead, but risks degradation on very long tasks |
+
+**The simplification principle applies:** start with the simplest approach (continuous session) and only add sprint decomposition if quality degrades. Each harness component encodes an assumption about model limitations — when the model improves, strip what's no longer load-bearing.

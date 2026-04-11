@@ -23,17 +23,20 @@ Invariants enforced mechanically. Violations block commits.
 4. **Server components by default** — `"use client"` only when the component needs browser APIs or event handlers. Enforced by PR review checklist.
 5. **Audit fields on all mutations** — Every INSERT/UPDATE includes `createdAt`/`updatedAt` via Prisma middleware. Enforced by Prisma middleware (automatic).
 
-## Delegation
+## Delegation (Hard Stop)
 
-Read `docs/delegation.md` for full routing table. Summary:
+Delegation is a golden principle — skipping a mandatory gate is a violation. Read `docs/delegation.md` for full routing table and context manifests. All triggers are objective and measurable.
 
-| Trigger | Delegate |
-|---------|----------|
-| Every commit | Code reviewer (background, sonnet) |
-| Before unfamiliar module | Explore agent (blocking, sonnet) |
-| After implementation | QA verification (blocking, sonnet) |
-| Feature complete | Product evaluator (blocking, opus) |
-| Same failure x2 | Deep investigation (blocking, opus) |
+| Trigger (objective) | Delegate | Gate |
+|---------------------|----------|------|
+| Target module has >5 files or >500 LOC | Explore agent (sonnet) | Mandatory, blocking |
+| Change touches ≥3 directories | Architecture analysis (opus) | Mandatory, blocking |
+| First edit in a directory this session | Explore agent (sonnet) | Mandatory, blocking |
+| File matches `**/auth/**`, `**/billing/**`, `prisma/migrations/**` | Analysis agent (sonnet) | Mandatory, blocking |
+| After implementation (always) | QA verification (sonnet) | Mandatory, blocking |
+| Feature complete | Product evaluator (opus) | Mandatory, blocking |
+| Every commit | Code reviewer (sonnet) | Background |
+| Same failure x2 | Deep investigation (opus) | Escalation, blocking |
 
 ## Working with Existing Code
 

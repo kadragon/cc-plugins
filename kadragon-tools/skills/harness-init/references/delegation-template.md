@@ -8,16 +8,23 @@ Organize into three tiers:
 
 ### Mandatory Gates (blocking)
 
-Tasks that must complete before the workflow can proceed. These ensure quality at critical checkpoints.
+Tasks that must complete before the workflow can proceed. These are **hard stops**, not suggestions — skipping a mandatory gate is a golden principle violation.
+
+**Critical: All triggers must be objective and measurable.** Never use subjective conditions like "unfamiliar module" or "complex change" — agents systematically overestimate their own understanding and will rationalize skipping delegation every time. See `references/golden-principles-guide.md` → "Delegation Discipline" for why.
 
 ```markdown
-| Trigger | Delegate to | Context to pass |
-|---------|-------------|-----------------|
-| Before modifying a module | Analysis agent | Module path, related docs |
-| Implementation task | Implementation agent | Spec, conventions, reference files |
-| After implementation | QA/verification agent | Modified files list, conventions |
+| Trigger (objective) | Delegate to | Context to pass |
+|---------------------|-------------|-----------------|
+| Target module has >N files or >M LOC | Analysis agent | Module path, related docs |
+| Change touches ≥3 directories | Architecture analysis agent | Changed paths, architecture.md |
+| First edit in directory this session | Explore agent | Directory path, architecture.md |
+| File matches critical path pattern (auth/billing/migration) | Analysis agent | File path, golden principles |
+| Implementation task from backlog | Implementation agent | Spec, conventions, reference files |
+| After implementation (always) | QA/verification agent | Modified files list, conventions |
 | Feature complete | Product evaluator | Done-when criteria, eval-criteria.md |
 ```
+
+**Adapting thresholds:** The `>N files` and `>M LOC` values depend on the project. For a small repo, N=3/M=200 might be right. For a monorepo, N=8/M=1000. Choose values that capture "this is a non-trivial module" for your specific codebase, and write them as concrete numbers in the routing table.
 
 ### Background Gates (non-blocking)
 
@@ -106,18 +113,38 @@ Agent({
 })
 ```
 
+## Objective Trigger Design
+
+When writing triggers for the routing table, follow these rules:
+
+1. **Countable over judgmental** — "≥3 directories" not "large change"
+2. **Path-based over knowledge-based** — "file in `src/auth/`" not "security-related code"
+3. **Session-scoped over lifetime-scoped** — "first edit in this directory this session" not "haven't worked here before"
+4. **Threshold-based over binary** — Set concrete numbers (LOC, file count, directory count) rather than yes/no assessments
+
+**Anti-patterns to reject during harness init:**
+
+| Anti-pattern | Why it fails | Replace with |
+|---|---|---|
+| "unfamiliar module" | Agent always thinks it knows enough | "first edit in directory this session" or ">N files in module" |
+| "complex change" | Agent underestimates complexity | "touches ≥3 directories" or ">M lines changed" |
+| "if unsure" | Agent is rarely unsure | Remove self-assessment; use objective proxy |
+| "significant refactor" | Subjective threshold | ">N files modified in one commit" |
+
 ## Workflow → Delegation Mapping
 
+These delegations are **embedded as named steps in `docs/workflows.md`**, not just cross-referenced. The workflow itself enforces delegation — an agent following the `code` workflow cannot skip these steps because they are the workflow.
+
 ```markdown
-| Workflow | Step | Delegate |
-|----------|------|----------|
-| `plan` | Domain research | Analysis agent (optional) |
-| `code` | Before implementation | Analysis agent (mandatory for unfamiliar areas) |
-| `code` | Implementation | Implementation agent (or orchestrator for small changes) |
-| `code` | Post-implementation | QA agent (mandatory) |
-| `code` | Feature complete | Product evaluator (mandatory) |
-| `draft` | Context gathering | Analysis agent (optional) |
-| `sweep` | Large scan | Sweep agent (background) |
+| Workflow | Step | Delegate | Gate type |
+|----------|------|----------|-----------|
+| `code` | Step 1: Scope check | Analysis agent (if objective trigger met) | Mandatory |
+| `code` | Step 3: Implementation | Implementation agent (or orchestrator for ≤2 files) | Conditional |
+| `code` | Step 4: Post-implementation | QA agent | Mandatory (always) |
+| `code` | Step 5: Feature complete | Product evaluator | Mandatory (always) |
+| `plan` | Domain research | Analysis agent | Optional |
+| `draft` | Context gathering | Analysis agent | Optional |
+| `sweep` | Large scan | Sweep agent (background) | Background |
 ```
 
 ## Applying Sub-Agent Output
