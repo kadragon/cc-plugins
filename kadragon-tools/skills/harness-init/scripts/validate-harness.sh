@@ -8,6 +8,9 @@
 #   3. All files referenced in AGENTS.md docs index exist
 #   4. Golden principles have enforcement references
 #   5. Delegation table is present and non-empty
+#
+# Performance: Uses [[ =~ ]] bash builtins instead of grep subprocesses.
+# AGENTS.md is read in a single pass — no repeated file scans.
 
 set -euo pipefail
 
@@ -57,18 +60,52 @@ if [[ -f "AGENTS.md" ]]; then
     fi
 fi
 
+# ── Single-pass AGENTS.md analysis ─────────────────────────
+# Read AGENTS.md once; extract doc references, golden principles,
+# and delegation presence using [[ =~ ]] — zero grep forks.
+
+referenced_docs=""
+has_golden=false
+principle_count=0
+has_delegation=false
+in_golden_section=false
+
+if [[ -f "AGENTS.md" ]]; then
+    while IFS= read -r line; do
+        # Extract backtick-quoted doc references: `docs/...`
+        remaining="$line"
+        while [[ "$remaining" =~ \`(docs/[a-zA-Z0-9_./-]+)\` ]]; do
+            referenced_docs+="${BASH_REMATCH[1]}"$'\n'
+            remaining="${remaining#*"${BASH_REMATCH[0]}"}"
+        done
+
+        # Track Golden Principles section boundaries
+        if [[ "$line" =~ ^##.*Golden[[:space:]]+Principles ]]; then
+            has_golden=true; in_golden_section=true; continue
+        fi
+        if $in_golden_section; then
+            [[ "$line" =~ ^## ]] && { in_golden_section=false; continue; }
+            [[ "$line" =~ ^[0-9]+\. ]] && principle_count=$((principle_count + 1))
+        fi
+
+        # Detect Delegation section
+        [[ "$line" =~ Delegation ]] && has_delegation=true
+    done < AGENTS.md
+    referenced_docs="${referenced_docs%$'\n'}"
+fi
+
 # ── 3. Reference integrity ─────────────────────────────────
 echo ""
 echo "--- Reference Integrity ---"
 
 if [[ -f "AGENTS.md" ]]; then
-    referenced_docs=$(grep -oP '`docs/[a-zA-Z0-9_./-]+`' AGENTS.md 2>/dev/null | tr -d '`' || true)
     if [[ -z "$referenced_docs" ]]; then
         warn "No docs/ references found in AGENTS.md"
     else
-        for doc in $referenced_docs; do
+        while IFS= read -r doc; do
+            [[ -z "$doc" ]] && continue
             [[ -f "$doc" ]] && pass "Referenced $doc exists" || fail "Referenced $doc missing"
-        done
+        done <<< "$referenced_docs"
     fi
 fi
 
@@ -77,8 +114,7 @@ echo ""
 echo "--- Golden Principles ---"
 
 if [[ -f "AGENTS.md" ]]; then
-    if grep -q "Golden Principles" AGENTS.md 2>/dev/null; then
-        principle_count=$(grep -cP '^\d+\.' <(sed -n '/Golden Principles/,/^##/p' AGENTS.md) 2>/dev/null || echo "0")
+    if $has_golden; then
         if [[ $principle_count -ge 3 && $principle_count -le 7 ]]; then
             pass "$principle_count golden principles defined (ideal: 3-7)"
         elif [[ $principle_count -gt 0 ]]; then
@@ -96,7 +132,7 @@ echo ""
 echo "--- Delegation ---"
 
 if [[ -f "AGENTS.md" ]]; then
-    if grep -q "Delegation" AGENTS.md 2>/dev/null; then
+    if $has_delegation; then
         pass "Delegation section exists in AGENTS.md"
     else
         warn "No Delegation section in AGENTS.md"

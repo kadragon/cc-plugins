@@ -43,7 +43,11 @@ $QUICK_MODE && { echo "Quick mode — done."; exit 0; }
 # ── 2. Doc drift check ──────────────────────────────────────
 echo -e "${CYAN}[2/5] Doc drift...${NC}"
 # Check if recently modified source files have corresponding doc updates
-recent_files=$(git log --since="24 hours ago" --name-only --pretty=format: 2>/dev/null | sort -u | grep -v '^$' || true)
+recent_files=""
+while IFS= read -r _line; do
+    [[ -n "$_line" ]] && recent_files+="$_line"$'\n'
+done < <(git log --since="24 hours ago" --name-only --pretty=format: 2>/dev/null | sort -u) || true
+recent_files="${recent_files%$'\n'}"
 if [[ -n "$recent_files" ]]; then
     # ADAPT: Define which source files should have corresponding docs
     # Example: for each modified service file, check if docs/spec/ was updated
@@ -68,7 +72,14 @@ harness_issues=0
 
 # Check that all files referenced in AGENTS.md exist
 if [[ -f "AGENTS.md" ]]; then
-    referenced_docs=$(grep -oP 'docs/[a-zA-Z0-9_./-]+\.(md|txt)' AGENTS.md 2>/dev/null || true)
+    referenced_docs=""
+    while IFS= read -r _line; do
+        while [[ "$_line" =~ (docs/[a-zA-Z0-9_./-]+\.(md|txt)) ]]; do
+            referenced_docs+="${BASH_REMATCH[1]}"$'\n'
+            _line="${_line#*"${BASH_REMATCH[0]}"}"
+        done
+    done < AGENTS.md
+    referenced_docs="${referenced_docs%$'\n'}"
     for doc in $referenced_docs; do
         if [[ ! -f "$doc" ]]; then
             FINDINGS+=("[harness] AGENTS.md references missing file: $doc")

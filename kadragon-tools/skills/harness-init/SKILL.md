@@ -161,6 +161,8 @@ Build a multi-layer enforcement chain so golden principles are mechanically guar
 
 Match enforcement depth to team size and risk tolerance. Not every project needs all 4 layers.
 
+**Performance rule for hook scripts:** Hooks fire on every edit, so avoid `echo | grep` inside loops — each call forks a subprocess. Use bash builtin `[[ =~ ]]` (available since bash 3.0) for pattern matching instead. See the "Performance" section in `references/enforcement-template.md` for migration patterns.
+
 ### Step 8: Create CLAUDE.md Pointer
 
 Create `CLAUDE.md` in the repo root with a single line:

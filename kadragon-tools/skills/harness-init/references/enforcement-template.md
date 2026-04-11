@@ -60,6 +60,40 @@ FILE="$CLAUDE_TOOL_ARG_FILE_PATH"
 #   3. Which doc explains the rule
 ```
 
+### Performance: Use `[[ =~ ]]` Instead of `grep` in Hooks
+
+Hooks fire on every edit. If a hook reads a file line-by-line and calls `echo "$line" | grep` per line, it forks a subprocess per check. At scale (e.g., 35 Java files × 15 checks/line), this means thousands of forks and becomes the dominant bottleneck.
+
+**`[[ =~ ]]` is a bash builtin (since bash 3.0) — no fork, no subprocess.** Replace all `echo | grep` patterns with `[[ =~ ]]` in hook scripts.
+
+```bash
+# BAD: forks a subprocess per line — O(lines × checks) forks
+while IFS= read -r line; do
+    if echo "$line" | grep -qP 'TODO|FIXME|HACK'; then
+        violations+=("$line")
+    fi
+done < "$FILE"
+
+# GOOD: bash builtin, zero forks — same O(lines × checks) comparisons but in-process
+while IFS= read -r line; do
+    if [[ "$line" =~ TODO|FIXME|HACK ]]; then
+        violations+=("$line")
+    fi
+done < "$FILE"
+```
+
+**Pattern migration reference:**
+
+| grep pattern | `[[ =~ ]]` equivalent | Notes |
+|---|---|---|
+| `echo "$x" \| grep -q 'pat'` | `[[ "$x" =~ pat ]]` | No quoting the regex |
+| `grep -qP '^\d+\.'` | `[[ "$x" =~ ^[0-9]+\. ]]` | ERE, not PCRE — use `[0-9]` for `\d` |
+| `grep -oP '(pat)' \| ...` | `[[ "$x" =~ (pat) ]]; echo "${BASH_REMATCH[1]}"` | Captures via `BASH_REMATCH` |
+| `grep -c 'pat' file` | Loop + counter: `[[ "$line" =~ pat ]] && ((count++))` | Single pass through file |
+| `cmd \| grep -v '^$'` | `[[ -n "$line" ]]` in a while-read loop | Filter empty lines |
+
+**When grep is still fine:** Single invocations on whole files (`grep -q 'pattern' file.txt`) fork once — no performance concern. The problem is grep *inside loops*.
+
 ## Layer 2: Pre-commit Checks
 
 Wire golden principle checks into git pre-commit hooks or the project's existing pre-commit framework.

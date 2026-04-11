@@ -9,19 +9,60 @@
 
 set -euo pipefail
 
-PR_NUMBER="${1:?Usage: merge-and-cleanup.sh <pr_number> <base_branch> <feature_branch> <merge_strategy_json> [worktree_path]}"
-BASE_BRANCH="${2:?}"
-FEATURE_BRANCH="${3:?}"
-MERGE_STRATEGY_JSON="${4:?}"
+# --- Argument validation ---
+usage() {
+  echo "Usage: merge-and-cleanup.sh <pr_number> <base_branch> <feature_branch> <merge_strategy_json> [worktree_path]"
+  echo ""
+  echo "  pr_number           PR number (integer)"
+  echo "  base_branch         Target branch (e.g. main)"
+  echo "  feature_branch      Branch to merge and delete"
+  echo "  merge_strategy_json JSON object, e.g. '{\"squash\":true,\"merge\":true,\"rebase\":true}'"
+  echo "  worktree_path       (optional) Worktree directory to remove after merge"
+  echo ""
+  echo "Example:"
+  echo "  merge-and-cleanup.sh 9 main feat/my-feature '{\"squash\":true}'"
+  exit 1
+}
+
+# Common mistake: passing strategy name instead of full args (e.g. "9 squash")
+if [[ $# -eq 2 && "$2" =~ ^(squash|merge|rebase)$ ]]; then
+  echo "ERROR: Got 'merge-and-cleanup.sh $1 $2' — missing <base_branch> <feature_branch> <merge_strategy_json>."
+  echo "       Did you mean: merge-and-cleanup.sh $1 main <feature_branch> '{\"$2\":true}' ?"
+  echo ""
+  usage
+fi
+
+if [[ $# -lt 4 ]]; then
+  echo "ERROR: Expected at least 4 arguments, got $#."
+  usage
+fi
+
+PR_NUMBER="$1"
+BASE_BRANCH="$2"
+FEATURE_BRANCH="$3"
+MERGE_STRATEGY_JSON="$4"
 WORKTREE_PATH="${5:-}"
+
+# Validate PR number is numeric
+if ! [[ "$PR_NUMBER" =~ ^[0-9]+$ ]]; then
+  echo "ERROR: pr_number must be an integer, got '$PR_NUMBER'."
+  usage
+fi
+
+# Validate merge_strategy_json is valid JSON
+if ! echo "$MERGE_STRATEGY_JSON" | jq empty 2>/dev/null; then
+  echo "ERROR: merge_strategy_json is not valid JSON: '$MERGE_STRATEGY_JSON'"
+  echo "       Expected something like '{\"squash\":true}'"
+  usage
+fi
 
 # --- Determine merge method (squash > merge > rebase) ---
 MERGE_FLAG=""
-if echo "$MERGE_STRATEGY_JSON" | jq -e '.squash == true' >/dev/null 2>&1; then
+if [[ "$MERGE_STRATEGY_JSON" =~ \"squash\"[[:space:]]*:[[:space:]]*true ]]; then
   MERGE_FLAG="--squash"
-elif echo "$MERGE_STRATEGY_JSON" | jq -e '.merge == true' >/dev/null 2>&1; then
+elif [[ "$MERGE_STRATEGY_JSON" =~ \"merge\"[[:space:]]*:[[:space:]]*true ]]; then
   MERGE_FLAG="--merge"
-elif echo "$MERGE_STRATEGY_JSON" | jq -e '.rebase == true' >/dev/null 2>&1; then
+elif [[ "$MERGE_STRATEGY_JSON" =~ \"rebase\"[[:space:]]*:[[:space:]]*true ]]; then
   MERGE_FLAG="--rebase"
 else
   MERGE_FLAG="--squash"

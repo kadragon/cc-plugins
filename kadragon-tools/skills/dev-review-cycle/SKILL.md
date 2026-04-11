@@ -178,7 +178,12 @@ Summary:
 
 1. **Wait for CI** — `gh pr checks <PR_NUMBER> --watch --fail-fast` (timeout 15 min).
 2. **On failure** — Fetch logs via `scripts/ci-failure-logs.sh`, classify fix (trivial → apply directly; logic change → re-run Steps 2-3). Hard stop after 3 consecutive failures.
-3. **Merge and clean up** — Run `scripts/merge-and-cleanup.sh` with pre-flight merge strategy. Report errors if `merge_ok` is false.
+3. **Merge and clean up** — Run the merge script with all 4 required positional args (5th is optional):
+   ```
+   bash ${CLAUDE_PLUGIN_ROOT}/skills/dev-review-cycle/scripts/merge-and-cleanup.sh \
+     <PR_NUMBER> <BASE_BRANCH> <FEATURE_BRANCH> '<MERGE_STRATEGY_JSON>' [worktree_path]
+   ```
+   All values come from pre-flight output: `pr_number`, `base_branch`, `feature_branch`, `merge_strategy` (JSON object, not a bare word like "squash"). Report errors if `merge_ok` is false.
 
 ## Re-running the Cycle
 
@@ -218,4 +223,4 @@ For detailed procedures, consult:
 - **`scripts/gemini-review.sh`** — Gemini CLI review launcher
 - **`scripts/codex-review.sh`** — Codex review launcher (plugin or CLI mode)
 - **`scripts/ci-failure-logs.sh`** — Fetches failed CI check logs as JSON
-- **`scripts/merge-and-cleanup.sh`** — Merges PR and cleans up local/remote branches
+- **`scripts/merge-and-cleanup.sh`** `<pr_number> <base_branch> <feature_branch> '<merge_strategy_json>'` — Merges PR and cleans up local/remote branches. All 4 args required; merge_strategy is a JSON object (e.g. `'{"squash":true}'`), not a bare word.
