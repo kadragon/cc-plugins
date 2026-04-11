@@ -1,7 +1,8 @@
 ---
 name: harness-init
+version: 0.2.0
 description: |
-  Initialize a harness system for any repository — AGENTS.md (map), docs/ knowledge base, delegation routing, evaluation criteria, golden principles, and automated sweep tooling. Based on Anthropic and OpenAI harness engineering principles. Use this skill whenever the user asks to "set up a harness", "initialize agent infrastructure", "bootstrap AGENTS.md", "create agent rules", "set up Claude Code for a new repo", "하네스 초기화", "에이전트 설정", or wants to make a repository agent-ready. Also use when the user mentions wanting consistent AI-assisted development, delegation to sub-agents, automated code quality checks, or structured agent workflows for a codebase. This skill is repo-scoped — it does NOT modify global ~/.claude/CLAUDE.md.
+  This skill should be used when the user asks to "set up a harness", "initialize agent infrastructure", "bootstrap AGENTS.md", "create agent rules", "set up Claude Code for a new repo", "하네스 초기화", "에이전트 설정", or wants to make a repository agent-ready. This skill should also be used when the user mentions wanting consistent AI-assisted development, delegation to sub-agents, automated code quality checks, or structured agent workflows for a codebase. This skill is repo-scoped — it does NOT modify global ~/.claude/CLAUDE.md.
 ---
 
 # Harness Init
@@ -14,7 +15,7 @@ Three sources inform this harness design:
 
 1. **Anthropic** — Generator-Evaluator separation, context reset over compaction, every harness component encodes a model-limitation assumption that should be periodically re-examined
 2. **OpenAI** — AGENTS.md is a map not an encyclopedia (~100 lines), repository is the system of record, golden principles enforced mechanically, automated garbage collection
-3. **Practical experience** — Progressive disclosure (INDEX → detail), agent-readable lint errors, sub-agent context manifests
+3. **Practical experience** — Progressive disclosure (INDEX -> detail), agent-readable lint errors, sub-agent context manifests
 
 The key insight: **if the agent struggles, that's a harness defect**, not an agent defect. Fix the environment, not the prompt.
 
@@ -23,11 +24,11 @@ The key insight: **if the agent struggles, that's a harness defect**, not an age
 - Setting up a new repository for AI-assisted development
 - Retrofitting an existing codebase with agent infrastructure
 - After cloning a repo that has no AGENTS.md or docs/ structure
-- When the user says their AI agent keeps making mistakes or forgetting context
+- When the user reports that AI agents keep making mistakes or forgetting context
 
 ## Prerequisites
 
-Before starting, you need to understand the project. Gather this information (ask the user if not obvious from the repo):
+Before starting, gather project information (ask the user if not obvious from the repo):
 
 1. **Tech stack** — Language(s), framework(s), database, frontend
 2. **Project type** — Greenfield, legacy, monorepo, library
@@ -54,22 +55,24 @@ Scan the repo for:
 - Git history (commit message patterns, branch strategy)
 ```
 
-Record findings — they'll shape every artifact you create. If existing AGENTS.md or docs/ exist, read them and decide what to keep vs. replace.
+Record findings — these shape every artifact created downstream. If existing AGENTS.md or docs/ exist, read them and decide what to keep vs. replace.
 
 ### Step 2: Define Golden Principles
 
-Golden principles are the 3-7 invariants that, if violated, will cause the most damage. They should be:
+Golden principles are the 3-7 invariants that, if violated, cause the most damage. They must be:
 - **Mechanically enforceable** (via lint, test, or hook — not verbal agreement)
 - **Specific to this project** (not generic "write clean code")
 - **Grounded in real pain** (past bugs, security issues, consistency problems)
 
 Read `references/golden-principles-guide.md` for examples across different tech stacks.
 
-Ask the user: "What are the rules that, if broken, cause the most pain in this codebase?" Their answer seeds the golden principles.
+Ask the user: "What are the rules that, if broken, cause the most pain in this codebase?" The answer seeds the golden principles.
 
 ### Step 3: Create AGENTS.md
 
 AGENTS.md is a **map, not an encyclopedia**. Target ~80-100 lines. It should fit in the agent's context window without crowding out actual work.
+
+See `examples/agents-md-example.md` for a complete reference.
 
 **Structure:**
 
@@ -91,88 +94,46 @@ AGENTS.md is a **map, not an encyclopedia**. Target ~80-100 lines. It should fit
 
 ## Golden Principles
 
-Invariants enforced mechanically. Violations block commits.
-
-1. {Principle 1}
-2. {Principle 2}
-...
-
 ## Delegation
-
-Read `docs/delegation.md` for full routing table. Summary:
-
-| {trigger} | → {agent} ({blocking/background}) |
-|---|---|
-...
 
 ## Working with Existing Code
 
-- {3-5 bullet points specific to this project}
-
 ## Language Policy
-
-- {if applicable}
 ```
 
-**What NOT to put in AGENTS.md:**
-- Workflow details (→ `docs/workflows.md`)
-- Delegation details (→ `docs/delegation.md`)
-- Evaluation criteria (→ `docs/eval-criteria.md`)
-- Architecture deep dives (→ `docs/architecture.md`)
-- API references, naming conventions (→ `docs/conventions.md`)
+**What NOT to put in AGENTS.md:** workflow details, delegation details, evaluation criteria, architecture deep dives, API references. These belong in `docs/`.
 
 ### Step 4: Create docs/ Knowledge Base
 
 Create these files. Each one is read **on demand**, not loaded every session.
 
 #### `docs/architecture.md`
-Project structure, layer rules, module boundaries, dependency directions. This is the "lay of the land" document. Read `references/architecture-template.md` for structure.
+Project structure, layer rules, module boundaries, dependency directions. Read `references/architecture-template.md` for structure and a concrete example.
 
 #### `docs/conventions.md`
-Naming patterns, coding standards, framework-specific rules. Only include conventions that agents frequently get wrong — don't duplicate the linter.
+Naming patterns, coding standards, framework-specific rules. Only include conventions that agents frequently get wrong — do not duplicate the linter. Read `references/conventions-template.md` for the template.
 
 #### `docs/workflows.md`
-How work gets done. Read `references/workflows-template.md` for the standard six workflows (plan/code/draft/constrain/sweep/explore) and adapt to the project. Include the "Permitted Side-Effects" table to avoid over-rigid workflow separation.
+How work gets done. Read `references/workflows-template.md` for the standard six workflows (plan/code/draft/constrain/sweep/explore) and adapt to the project.
 
 #### `docs/delegation.md`
-Sub-agent routing table and context manifest. For each delegation target, specify:
-- **Trigger** — when to invoke
-- **Blocking or background**
-- **Context to pass** — specific file paths the sub-agent needs
-- **Expected output** — what the sub-agent should produce
-
-Read `references/delegation-template.md` for the full template.
+Sub-agent routing table and context manifest. Read `references/delegation-template.md` for the full template including model selection per role.
 
 #### `docs/eval-criteria.md`
-Product-level evaluation criteria. The evaluator is a **separate role** from the generator (this is critical — self-evaluation creates systematic bias toward leniency).
-
-Define 3-5 grading criteria with:
-- Score rubric (1-5 scale)
-- Weight per criterion
-- Pass threshold
-- How to test each criterion
-- Calibration examples (what a score of 5 vs 2 looks like)
-
-Read `references/eval-criteria-template.md` for the template.
+Product-level evaluation criteria with the Generator-Evaluator separation principle. Read `references/eval-criteria-template.md` for the template.
 
 #### `docs/runbook.md`
-Build, test, deploy commands. Common failure modes and fixes. Environment setup.
+Build, test, deploy commands. Common failure modes and fixes. Environment setup. Read `references/runbook-template.md` for the template.
 
 ### Step 5: Set Up Sweep Automation
 
-Create `tools/sweep.sh` (or equivalent for the project's ecosystem). The sweep script performs automated garbage collection:
+Copy `scripts/sweep.sh` into the target project's `tools/` directory and adapt the `# ADAPT:` sections. Read `references/sweep-template.md` for ecosystem-specific adaptation guidance.
 
-1. **Lint scan** — run existing linters, auto-fix trivials
-2. **Doc drift** — check if recently modified code areas have stale docs
-3. **Golden principle violations** — spot-check recent changes against golden principles
-4. **Harness freshness** — verify AGENTS.md and docs/ references still point to existing files
-5. **Report** — append findings to `tasks.md`
-
-Read `references/sweep-template.md` for the base script, then adapt to the project's tech stack.
+The sweep script performs five checks: lint scan, doc drift, golden principle violations, harness freshness, and finding report.
 
 ### Step 6: Improve Lint for Agent Readability
 
-If the project has linters, improve their error messages for agent consumption:
+If the project has linters, improve error messages for agent consumption:
 
 **Before (human-oriented):**
 ```
@@ -186,59 +147,19 @@ ERROR: Line 42 — violation of rule X
   REF: {which doc or config file explains this rule}
 ```
 
-This is the "맞춤 린트 에러 메시지에 수정 지침을 주입" pattern from OpenAI's harness engineering. Each error message becomes a micro-instruction that tells the agent exactly how to fix the issue.
+Each error message becomes a micro-instruction that tells the agent exactly how to fix the issue.
 
 ### Step 7: Build the Enforcement Chain
 
-Documentation alone doesn't prevent violations. Build a multi-layer enforcement chain so golden principles are mechanically guaranteed, not just documented.
+Build a multi-layer enforcement chain so golden principles are mechanically guaranteed. Read `references/enforcement-template.md` for detailed templates per layer.
 
-**Layer 1: Real-time hooks** (`.claude/settings.json`)
+**Four layers (defense in depth):**
+1. **Real-time hooks** (`.claude/settings.json`) — Catch violations at edit time
+2. **Pre-commit checks** — Block commits with unfixed violations
+3. **CI gate** — Block merges on failure
+4. **PR template** (optional) — Checklist derived from golden principles
 
-Create `.claude/settings.json` with hooks that fire during agent editing:
-
-```json
-{
-  "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "Edit|Write",
-        "hooks": [{"type": "command", "command": "bash .claude/hooks/pre-edit-guard.sh"}]
-      }
-    ],
-    "PostToolUse": [
-      {
-        "matcher": "Edit|Write",
-        "hooks": [{"type": "command", "command": "bash .claude/hooks/post-edit-lint.sh"}]
-      }
-    ]
-  }
-}
-```
-
-Design hooks that catch golden principle violations **at edit time**, before they're even committed. The hook's error message should tell the agent exactly what's wrong and how to fix it.
-
-**Layer 2: Pre-commit checks**
-
-Wire golden principle checks into git pre-commit hooks or the project's existing pre-commit framework. This catches anything the real-time hooks missed.
-
-**Layer 3: CI gate**
-
-Add golden principle enforcement to the CI pipeline. If the project has GitHub Actions, Jenkins, etc., add a step that runs the lint/check tools and blocks merge on failure.
-
-**Layer 4: PR template** (optional)
-
-If the project uses pull requests, create a PR template (`.github/PULL_REQUEST_TEMPLATE.md` or equivalent) with a checklist derived from golden principles.
-
-The goal is defense in depth — each layer catches what the previous one missed:
-```
-Agent edits a file
-  → PostToolUse hook warns immediately (Layer 1)
-  → Pre-commit blocks the commit if unfixed (Layer 2)
-  → CI blocks the merge (Layer 3)
-  → PR reviewer confirms via checklist (Layer 4)
-```
-
-Not every project needs all 4 layers. Match the enforcement depth to the team size and risk tolerance.
+Match enforcement depth to team size and risk tolerance. Not every project needs all 4 layers.
 
 ### Step 8: Create CLAUDE.md Pointer
 
@@ -248,28 +169,49 @@ Create `CLAUDE.md` in the repo root with a single line:
 @AGENTS.md
 ```
 
-This keeps the loading chain clean: Claude loads `CLAUDE.md` → which loads `AGENTS.md` (the map) → which points to `docs/` (read on demand).
+This keeps the loading chain clean: Claude loads `CLAUDE.md` -> `AGENTS.md` (the map) -> `docs/` (read on demand).
 
 ### Step 9: Validate
 
-After creating all artifacts, verify:
+Run `scripts/validate-harness.sh` against the target project to verify all artifacts are complete and consistent.
 
-- [ ] AGENTS.md is under 100 lines
-- [ ] All files referenced in AGENTS.md docs index actually exist
-- [ ] Golden principles are enforceable (each one has a lint rule, test, or hook)
-- [ ] Enforcement chain has at least 2 layers (e.g., hook + CI, or hook + pre-commit)
-- [ ] Delegation table covers the project's main workflows
+Manual checklist for items the script cannot verify:
+- [ ] Golden principles are enforceable (each has a lint rule, test, or hook)
 - [ ] Delegation table specifies model per role (haiku/sonnet/opus)
 - [ ] Eval criteria are concrete and gradeable (not vague)
-- [ ] Sweep script runs without errors
-- [ ] `docs/` files don't duplicate each other
-- [ ] `.claude/settings.json` hooks are configured for golden principle enforcement
+- [ ] `docs/` files do not duplicate each other
 
 ### Step 10: Explain to the User
 
-After setup, walk the user through what was created and how to use it. Key points:
+After setup, walk the user through what was created. Key points:
 
 - AGENTS.md is the entry point — keep it short, point to docs/
 - Run sweep periodically (between features, or automate with CronCreate)
 - Update docs/ after implementing features — stale docs are worse than no docs
 - Golden principles should evolve — add new ones when new pain points emerge, remove when model capability makes them unnecessary
+
+## Additional Resources
+
+### Reference Files
+
+Detailed templates and guides in `references/`:
+- **`references/golden-principles-guide.md`** — Discovery questions, tech-stack examples, principle-to-enforcement mapping
+- **`references/architecture-template.md`** — Architecture doc structure with a concrete Next.js example
+- **`references/conventions-template.md`** — Naming, code style, framework-specific rules, API and git conventions
+- **`references/runbook-template.md`** — Build/test/deploy commands, common failures, environment variables
+- **`references/workflows-template.md`** — Six workflows (plan/code/draft/constrain/sweep/explore) with permitted side-effects
+- **`references/delegation-template.md`** — 3-tier routing table, context manifests, model selection per role
+- **`references/eval-criteria-template.md`** — Grading rubrics, calibration examples, evaluator execution protocol
+- **`references/enforcement-template.md`** — 4-layer enforcement chain with CI/hook/pre-commit templates
+- **`references/sweep-template.md`** — Ecosystem-specific adaptation guide for the sweep script
+
+### Scripts
+
+Utility scripts in `scripts/`:
+- **`scripts/sweep.sh`** — Base sweep script to copy and adapt per project
+- **`scripts/validate-harness.sh`** — Validates harness completeness (file existence, AGENTS.md size, reference integrity)
+
+### Examples
+
+Working examples in `examples/`:
+- **`examples/agents-md-example.md`** — Complete AGENTS.md for a Next.js SaaS project
