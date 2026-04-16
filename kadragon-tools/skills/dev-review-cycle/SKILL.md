@@ -55,7 +55,15 @@ If already on a non-base branch, skip this step.
 
 ### Step 1: Commit (and Create PR unless `--no-hub`)
 
-Delegate commit (and push/PR) to a **subagent** to keep the main workflow context clean.
+Before delegating, **determine the commit message yourself**:
+
+- If you have context from recent development or from Step 0's `git diff` read, use it directly.
+- Otherwise (cold invocation), run `git diff --stat HEAD` to understand what changed.
+- Run `git log --oneline -5` to match the project's commit style.
+
+Write the commit message, then **replace `${COMMIT_MESSAGE}` with the actual text** before passing the prompt to the Agent tool. Do NOT ask the subagent to analyze the diff.
+
+Delegate only the mechanical git operations to a **subagent**.
 
 **When `--no-hub` is set:**
 
@@ -64,11 +72,14 @@ Agent tool parameters:
   description: "Commit changes locally"
   model: "sonnet"
   prompt: |
-    Commit all staged and unstaged changes in the current repository.
-    1. Run `git status` and `git diff HEAD` to understand the changes.
-    2. Run `git log --oneline -10` to match existing commit style.
-    3. Stage relevant files with `git add` and create a single commit.
-    Report the commit hash and message when done.
+    Commit all staged and unstaged changes in the current repository using this exact message:
+    ---
+    ${COMMIT_MESSAGE}
+    ---
+    1. Run `git status` to confirm there are changes to commit.
+    2. Stage all relevant files with `git add`.
+    3. Create the commit with the message above (do NOT rewrite it).
+    Report the commit hash when done.
 ```
 
 Immediately proceed to Step 2 after the subagent returns.
@@ -80,10 +91,13 @@ Agent tool parameters:
   description: "Commit, push, and create PR"
   model: "sonnet"
   prompt: |
-    Commit, push, and create a PR for the current changes.
-    1. Run `git status`, `git diff HEAD`, and `git branch --show-current`.
-    2. If on the base branch (main/master), create a new feature branch.
-    3. Stage relevant files and create a single commit.
+    Commit, push, and create a PR for the current changes using this exact commit message:
+    ---
+    ${COMMIT_MESSAGE}
+    ---
+    1. Run `git status` to confirm there are changes to commit.
+    2. Stage all relevant files with `git add`.
+    3. Create the commit with the message above (do NOT rewrite it).
     4. Push the branch to origin.
     5. Create a pull request using `gh pr create`.
     Report the PR number and URL when done.
@@ -162,25 +176,9 @@ After improvements are applied and tests pass, immediately proceed to Step 5.
 
 ### Step 5: Commit (and Push unless `--no-hub`)
 
-Delegate commit (and push) to a **subagent** to keep the main workflow context clean.
+**Determine the commit message yourself** based on which improvements you just applied — you have full context from Step 4. Write a concise message summarizing the changes. **Replace `${COMMIT_MESSAGE}` with the actual text** before passing the prompt to the Agent tool. Do NOT ask the subagent to re-analyze the diff.
 
-**When `--no-hub` is NOT set:**
-
-```
-Agent tool parameters:
-  description: "Commit and push review improvements"
-  model: "sonnet"
-  prompt: |
-    Commit and push the review improvements applied to this branch.
-    1. Run `git status` and `git diff HEAD` to see the changes.
-    2. Check CLAUDE.md / AGENTS.md for project commit conventions.
-    3. Stage only the modified files.
-    4. Create a single commit. Reference PR #${PR_NUMBER} in the message.
-    5. Push to origin (same branch). Do NOT create a new PR.
-    Report the commit hash when done.
-```
-
-After the subagent returns, immediately proceed to Step 6.
+Delegate only the mechanical git operations to a **subagent**.
 
 **When `--no-hub` is set:**
 
@@ -189,15 +187,37 @@ Agent tool parameters:
   description: "Commit review improvements locally"
   model: "sonnet"
   prompt: |
-    Commit the review improvements locally (do NOT push).
-    1. Run `git status` and `git diff HEAD` to see the changes.
-    2. Check CLAUDE.md / AGENTS.md for project commit conventions.
-    3. Stage only the modified files.
-    4. Create a single commit.
+    Commit the review improvements locally (do NOT push) using this exact message:
+    ---
+    ${COMMIT_MESSAGE}
+    ---
+    1. Run `git status` to see which files were modified.
+    2. Stage only the modified files with `git add`.
+    3. Create the commit with the message above (do NOT rewrite it).
     Do NOT push. Report the commit hash when done.
 ```
 
 After the subagent returns, skip Step 6 entirely. Report the review summary and applied improvements to the user. The workflow ends here.
+
+**When `--no-hub` is NOT set:**
+
+```
+Agent tool parameters:
+  description: "Commit and push review improvements"
+  model: "sonnet"
+  prompt: |
+    Commit and push review improvements using this exact message:
+    ---
+    ${COMMIT_MESSAGE}
+    ---
+    1. Run `git status` to see which files were modified.
+    2. Stage only the modified files with `git add`.
+    3. Create the commit with the message above (do NOT rewrite it).
+    4. Push to origin (same branch). Do NOT create a new PR.
+    Report the commit hash when done.
+```
+
+After the subagent returns, immediately proceed to Step 6.
 
 ### Step 6: Wait for CI and Merge (skip when `--no-hub`)
 

@@ -34,9 +34,9 @@ The script identifies failed checks, extracts run IDs, and returns JSON with log
 
 Run tests locally to confirm the fix works.
 
-### 4. Push
+### 4. Commit and Push
 
-Stage, commit (referencing the PR number), and push.
+Determine the commit message yourself based on the fix just applied (you have full context). Reference the PR number in the message. Then stage, commit with that message, and push directly — no subagent needed for a single-file CI fix.
 
 ### 5. Re-check CI
 
