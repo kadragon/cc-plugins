@@ -1,19 +1,54 @@
 #!/usr/bin/env bash
 # E) Skills Symlink Guard
 #
-# Ensures .agents/skills → ../.claude/skills
-# Silent on success; prints one line if a change was made.
+# Ensures .agents/skills resolves to ../.claude/skills.
+# Two valid materializations:
+#   - Real symlink (POSIX, or Windows with core.symlinks=true + Developer Mode)
+#   - Regular text file containing "../../.claude/skills" (git core.symlinks=false checkout)
+# Silent on success; prints one line if a change is made; exits non-zero on ambiguous state.
 
 set -euo pipefail
 
 TARGET="../.claude/skills"
 LINK=".agents/skills"
 
+# Case 1: valid symlink
 if [ -L "$LINK" ] && [ "$(readlink "$LINK")" = "$TARGET" ]; then
   exit 0
 fi
 
-mkdir -p .claude/skills .agents
-rm -rf "$LINK"
-ln -sfn "$TARGET" "$LINK"
-echo "Symlink updated: $LINK → $TARGET"
+# Case 2: git-text-symlink (Windows, core.symlinks=false) — correct representation, leave alone
+if [ -f "$LINK" ] && [ ! -L "$LINK" ]; then
+  content=$(cat "$LINK")
+  if [ "$content" = "$TARGET" ]; then
+    exit 0
+  fi
+fi
+
+# Case 3: wrong-target symlink — safe to replace (just a pointer, no data)
+if [ -L "$LINK" ]; then
+  rm "$LINK"
+fi
+
+# Case 4: missing — create and verify
+if [ ! -e "$LINK" ]; then
+  mkdir -p .claude/skills .agents
+  ln -sfn "$TARGET" "$LINK"
+  if [ -L "$LINK" ]; then
+    echo "Symlink updated: $LINK → $TARGET"
+    exit 0
+  fi
+  # ln -s fell back to a directory copy (Windows without symlink support)
+  rm -rf "$LINK"
+  echo "symlink-guard: ln -s fell back to directory copy (Windows without symlink support)."
+  echo "  Fix: git config core.symlinks true  &&  enable Windows Developer Mode,"
+  echo "       then: git checkout HEAD -- .agents/skills"
+  echo "  Or commit the text form as-is — it works on POSIX peers via git mode-120000."
+  exit 2
+fi
+
+# Case 5: unexpected state (wrong-content file, directory, etc.) — do not destroy, report
+echo "symlink-guard: .agents/skills is in an unexpected state (not a symlink or git text-symlink)."
+echo "  Current: $(ls -ld "$LINK" 2>&1 || true)"
+echo "  Manual fix: rm -rf .agents/skills && bash \$CLAUDE_PLUGIN_ROOT/skills/harness-sync/scripts/symlink-guard.sh"
+exit 1

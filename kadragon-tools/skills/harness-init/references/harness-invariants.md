@@ -14,7 +14,7 @@ value changes here, update both skills in the same commit.
 |------|-----------|------------|------------|
 | `CLAUDE.md` | Exactly one line: `@AGENTS.md` | init Step 8 | sync B (`sync-claude-md.sh`) |
 | `AGENTS.md` | Target ≤100 lines, hard warn >200 | init Step 3 | sync F (`check-context-size.sh`) |
-| `.agents/skills` | Symlink → `../.claude/skills` | init Step 8 | sync E (`symlink-guard.sh`) |
+| `.agents/skills` | Symlink → `../.claude/skills` (or regular text file containing `../.claude/skills` on Windows with `core.symlinks=false`) | init Step 8 | sync E (`symlink-guard.sh`) |
 | `backlog.md` | Items use `[ ]` / `[>]` / `[x]` checkboxes under `##` headings | init Step 4 | sync C + D-1 |
 | `tasks.md` | Fields: `# Title`, `status:`, `Scope`, `Acceptance Criteria`, `Evaluator Feedback` | init Step 4 | sync C + D-1 |
 | `docs/architecture.md` etc. | Referenced from AGENTS.md docs index | init Step 4 | `validate-harness.sh` |

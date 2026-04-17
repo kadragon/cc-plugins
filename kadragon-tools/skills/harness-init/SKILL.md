@@ -224,14 +224,13 @@ Prevents Claude from scanning vendored dependencies, build outputs, and generate
 
 Required for tooling that looks up project-local skills via the conventional `.agents/` path while the actual skill files live under `.claude/skills/`. Invariant enforced by `harness-sync` E.
 
-Create once at init time:
+Create once at init time (uses the same Windows-safe guard as sync E):
 
 ```bash
-mkdir -p .claude/skills .agents
-ln -sfn ../.claude/skills .agents/skills
+bash ${CLAUDE_PLUGIN_ROOT}/skills/harness-sync/scripts/symlink-guard.sh
 ```
 
-After init, verify with `readlink .agents/skills` → must print `../.claude/skills`.
+After init, verify: `readlink .agents/skills` prints `../.claude/skills` (POSIX), **or** on Windows with `core.symlinks=false`, `.agents/skills` is a regular text file whose content is exactly `../.claude/skills`. Both forms pass validation.
 
 ### Step 9: Validate
 

@@ -201,8 +201,14 @@ if [[ -L ".agents/skills" ]]; then
     else
         fail ".agents/skills points to '$link_target' (expected ../.claude/skills)"
     fi
+elif [[ -f ".agents/skills" && ! -L ".agents/skills" ]]; then
+    if [[ "$(cat .agents/skills)" == "../.claude/skills" ]]; then
+        pass ".agents/skills → ../.claude/skills (git text-symlink; Windows core.symlinks=false)"
+    else
+        fail ".agents/skills exists as a file but content is not '../.claude/skills'"
+    fi
 elif [[ -e ".agents/skills" ]]; then
-    fail ".agents/skills exists but is not a symlink"
+    fail ".agents/skills exists but is not a symlink or git text-symlink"
 else
     warn ".agents/skills missing — harness-sync E will create it on next run"
 fi
