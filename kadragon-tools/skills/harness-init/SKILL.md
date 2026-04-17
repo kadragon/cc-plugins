@@ -1,8 +1,8 @@
 ---
 name: harness-init
-version: 0.4.0
+version: 0.4.1
 description: |
-  This skill should be used when the user asks to "set up a harness", "initialize agent infrastructure", "bootstrap AGENTS.md", "create agent rules", "set up Claude Code for a new repo", "하네스 초기화", "에이전트 설정", or wants to make a repository agent-ready. This skill should also be used when the user mentions wanting consistent AI-assisted development, delegation to sub-agents, automated code quality checks, or structured agent workflows for a codebase. This skill is repo-scoped — it does NOT modify global ~/.claude/CLAUDE.md.
+  This skill should be used when the user asks to "set up a harness", "initialize agent infrastructure", "bootstrap AGENTS.md", "bootstrap a repo without a harness", "create agent rules", "set up Claude Code for a new repo", "make this repo agent-ready", "하네스 초기화", "에이전트 설정", or when a repo has no AGENTS.md / docs/ structure and needs one. Also trigger when the user mentions wanting consistent AI-assisted development, delegation to sub-agents, automated code quality checks, or structured agent workflows. Produces: AGENTS.md (map), CLAUDE.md pointer, docs/ knowledge base, backlog.md, sweep automation, .claudeignore, .agents/skills symlink, and optional enforcement hooks. Repo-scoped — does NOT modify global ~/.claude/CLAUDE.md.
 ---
 
 # Harness Init
@@ -111,41 +111,27 @@ See `examples/agents-md-example.md` for a complete reference.
 {embed the AGENTS.md Edit Policy — see below}
 ```
 
-**The `## Maintenance` section is mandatory.** Paste the 4-rule edit policy verbatim from `references/harness-invariants.md` → "AGENTS.md Edit Policy". This internalizes the `harness-sync` acceptance filter so any session applying edits to AGENTS.md follows the same rule — sync is not the only guardrail.
-
-**Token Economy is mandatory.** Include the standard 5-rule block verbatim — no re-reading files, no redundant tool calls, parallel independent calls, delegate >20-line output to sub-agents, no restating user input. These rules apply every message and are the single biggest lever for keeping the context window lean on long sessions. See `examples/agents-md-example.md` → "Token Economy" for the exact block to paste.
-
-**Context anxiety warning:** Models on lengthy tasks may prematurely wrap up work or cut corners as context fills. AGENTS.md should include a note directing the agent to prefer context resets over compaction and to write `handoff-{feature}.md` at the start of multi-session work (not when context is already degraded). See `references/workflows-template.md` → "Context Anxiety" for countermeasures.
+**Three embedded blocks are mandatory in AGENTS.md**, all shown verbatim in `examples/agents-md-example.md`:
+1. `## Maintenance` — 4-rule edit policy from `references/harness-invariants.md` → "AGENTS.md Edit Policy"
+2. `## Token Economy` — 5-rule block (biggest lever for long-session context)
+3. Context-anxiety note — prefer context resets over compaction; write `handoff-{feature}.md` at the start of multi-session work, not after context degrades. See `references/workflows-template.md` → "Context Anxiety".
 
 **What NOT to put in AGENTS.md:** workflow details, delegation details, evaluation criteria, architecture deep dives, API references. These belong in `docs/`.
 
 ### Step 4: Create docs/ Knowledge Base
 
-Create these files. Each one is read **on demand**, not loaded every session.
+Create these files. Each is read **on demand**, not loaded every session. Each template file is self-describing — read it before writing the doc.
 
-#### `docs/architecture.md`
-Project structure, layer rules, module boundaries, dependency directions. Read `references/architecture-template.md` for structure and a concrete example.
+| File | Purpose | Template |
+|------|---------|----------|
+| `docs/architecture.md` | Project structure, layer rules, module boundaries, dependency directions | `references/architecture-template.md` |
+| `docs/conventions.md` | Naming, code style, framework rules agents frequently get wrong (don't duplicate the linter) | `references/conventions-template.md` |
+| `docs/workflows.md` | Six standard workflows (plan/code/draft/constrain/sweep/explore) with delegation gates embedded | `references/workflows-template.md` |
+| `docs/delegation.md` | Pattern-selection flowchart, Spawn Prompt Contract, Effort Tier, routing table, per-role model | `references/delegation-template.md` (+ `coordination-patterns.md`) |
+| `docs/eval-criteria.md` | Generator-Evaluator separation, Sprint Contract, calibration methodology | `references/eval-criteria-template.md` |
+| `docs/runbook.md` | Build/test/deploy commands, failure modes, env setup | `references/runbook-template.md` |
 
-#### `docs/conventions.md`
-Naming patterns, coding standards, framework-specific rules. Only include conventions that agents frequently get wrong — do not duplicate the linter. Read `references/conventions-template.md` for the template.
-
-#### `docs/workflows.md`
-How work gets done. Read `references/workflows-template.md` for the standard six workflows (plan/code/draft/constrain/sweep/explore) and adapt to the project. Each workflow that modifies code has explicit delegation checkpoints built into its steps — delegation is not a separate document to "consult" but a mandatory gate within the workflow itself.
-
-#### `docs/delegation.md`
-Sub-agent routing table and context manifest. Read `references/delegation-template.md` for the full template including:
-- **Pattern selection flowchart** (Orchestrator-Subagent / Generator-Verifier / Agent Teams / when NOT to delegate) — paste at the top
-- **Spawn Prompt Contract** — every spawn must include Objective, Output format, Tools to use, Boundaries
-- **Effort Tier** table (Simple / Comparison / Complex) embedded in spawn prompts
-- Model selection per role
-
-All triggers in the routing table must be **objective and measurable** — never use subjective conditions like "unfamiliar module" that the agent can rationalize away. For the full catalogue of coordination patterns, add `references/coordination-patterns.md` as an on-demand reference.
-
-#### `docs/eval-criteria.md`
-Product-level evaluation criteria with the Generator-Evaluator separation principle. Includes the Sprint Contract pattern (pre-implementation "done" negotiation), evaluator self-deception countermeasures, and calibration methodology. Read `references/eval-criteria-template.md` for the template.
-
-#### `docs/runbook.md`
-Build, test, deploy commands. Common failure modes and fixes. Environment setup. Read `references/runbook-template.md` for the template.
+**Non-negotiable for `docs/delegation.md`:** triggers in the routing table must be objective and measurable — never subjective conditions ("unfamiliar module") the agent can rationalize away.
 
 ### Step 4c: Define Reusable Roles (if multi-agent)
 
@@ -213,11 +199,7 @@ Build a multi-layer enforcement chain so golden principles are mechanically guar
 3. **CI gate** — Block merges on failure
 4. **PR template** (optional) — Checklist derived from golden principles
 
-Match enforcement depth to team size and risk tolerance. Not every project needs all 4 layers.
-
-**Performance rule for hook scripts:** Hooks fire on every edit, so avoid `echo | grep` inside loops — each call forks a subprocess. Use bash builtin `[[ =~ ]]` (available since bash 3.0) for pattern matching instead. See the "Performance" section in `references/enforcement-template.md` for migration patterns.
-
-**Token-economy hook worth considering:** `references/enforcement-template.md` → "Bash Output Truncation" documents a generic PostToolUse hook that tails/caps large Bash outputs (test suites, verbose builds, long `git log`). Not a golden principle but a zero-judgment win — enable for any repo that routinely runs commands with >200-line output.
+Match enforcement depth to team size and risk tolerance. Not every project needs all 4 layers. Two extras to consider from `references/enforcement-template.md`: the `[[ =~ ]]` performance rule for hook scripts (§Performance) and the Bash Output Truncation PostToolUse hook (§Bash Output Truncation) — a zero-judgment win for repos with routinely verbose command output.
 
 ### Step 8: Create Repo Root Configs
 
@@ -233,23 +215,17 @@ Keeps the loading chain clean: Claude loads `CLAUDE.md` → `AGENTS.md` (the map
 
 #### `.claudeignore` (scan exclusions)
 
-Prevents Claude from scanning vendored dependencies, build outputs, and generated artifacts. Without it a single glob can pull in `node_modules/` or `target/` and burn tokens on files the agent won't usefully read.
-
-1. Detect the language set from Step 1's analysis
-2. Compose using `references/claudeignore-template.md` — combine "Common" + one or more language sections
-3. Never include source files, migration SQL, or canonical config (`package.json`, `tsconfig.json`, etc.)
+Prevents token burn on vendored deps, build outputs, and generated artifacts. Compose from `references/claudeignore-template.md` (Common + language sections) based on the Step 1 stack analysis.
 
 #### `.agents/skills` symlink
 
-Required for tooling that looks up project-local skills via the conventional `.agents/` path while the actual skill files live under `.claude/skills/`. Invariant enforced by `harness-sync` E.
-
-Create once at init time (uses the same Windows-safe guard as sync E):
+Tooling looks up project-local skills via `.agents/` while files live under `.claude/skills/`. Invariant enforced by `harness-sync` E. Create once at init:
 
 ```bash
 bash ${CLAUDE_PLUGIN_ROOT}/skills/harness-sync/scripts/symlink-guard.sh
 ```
 
-After init, verify: `readlink .agents/skills` prints `../.claude/skills` (POSIX), **or** on Windows with `core.symlinks=false`, `.agents/skills` is a regular text file whose content is exactly `../.claude/skills`. Both forms pass validation.
+Accepted forms (POSIX symlink or Windows text-file fallback) documented in `references/harness-invariants.md` → File Layout Invariants.
 
 ### Step 8b: Agent Teams Onboarding (optional)
 
@@ -294,36 +270,14 @@ After setup, walk the user through what was created. Key points:
 
 ## Additional Resources
 
-### Reference Files
-
-Detailed templates and guides in `references/`:
-- **`references/harness-invariants.md`** — Shared contract between `harness-init` and `harness-sync` (thresholds, file layouts, edit policy, Spawn Prompt Contract, reconciliation contract)
-- **`references/golden-principles-guide.md`** — Discovery questions, tech-stack examples, principle-to-enforcement mapping
-- **`references/architecture-template.md`** — Architecture doc structure with a concrete Next.js example
-- **`references/conventions-template.md`** — Naming, code style, framework-specific rules, API and git conventions
-- **`references/runbook-template.md`** — Build/test/deploy commands, common failures, environment variables
-- **`references/workflows-template.md`** — Six workflows (plan/code/draft/constrain/sweep/explore) + optional `debate` workflow + File Ownership Declaration for multi-agent
-- **`references/delegation-template.md`** — Pattern selection flowchart, Spawn Prompt Contract, Effort Tier, routing table, model selection
-- **`references/coordination-patterns.md`** — Five patterns (Generator-Verifier / Orchestrator-Subagent / Agent Teams / Message Bus / Shared State) with when-to-use and failure modes
-- **`references/teammate-role-template.md`** — `.claude/agents/{role}.md` schema + starter pack (implementer/explorer/qa-verifier/product-evaluator)
-- **`references/handoff-template.md`** — `handoff-{feature}.md` schema for clean context resets across sessions
-- **`references/agent-teams-onboarding.md`** — Opt-in setup for Claude Code Agent Teams (experimental) with decision checklist
-- **`references/competing-hypotheses-playbook.md`** — Adversarial debugging workflow for high-stakes root-cause investigation
-- **`references/eval-criteria-template.md`** — Grading rubrics, calibration examples, evaluator execution protocol
-- **`references/enforcement-template.md`** — 4-layer enforcement chain + Agent Teams quality gates (TaskCreated/TaskCompleted/TeammateIdle)
-- **`references/sweep-template.md`** — Ecosystem-specific adaptation guide for the sweep script
-- **`references/backlog-template.md`** — Minimal `backlog.md` schema (checkbox states, headings)
-- **`references/tasks-template.md`** — `tasks.md` schema for active sprints (status field, required sections)
-- **`references/claudeignore-template.md`** — `.claudeignore` patterns by language
-- **`references/power-user-settings.md`** — Optional env vars (AUTOCOMPACT threshold, extended thinking) and output-style customization — informational, not auto-applied
+All `references/*.md` files are cited inline at point of use — consult them there. One file is optional and not cited inline:
+- **`references/power-user-settings.md`** — Optional env vars (AUTOCOMPACT threshold, extended thinking) and output-style customization. Informational, not auto-applied; surface to the user after Step 10 if they ask for further tuning.
 
 ### Scripts
 
-Utility scripts in `scripts/`:
-- **`scripts/sweep.sh`** — Base sweep script to copy and adapt per project
-- **`scripts/validate-harness.sh`** — Validates harness completeness (file existence, AGENTS.md size, reference integrity)
+- **`scripts/sweep.sh`** — Base sweep script to copy and adapt per project (Step 5)
+- **`scripts/validate-harness.sh`** — Validates harness completeness (Step 9)
 
 ### Examples
 
-Working examples in `examples/`:
-- **`examples/agents-md-example.md`** — Complete AGENTS.md for a Next.js SaaS project
+- **`examples/agents-md-example.md`** — Complete AGENTS.md for a Next.js SaaS project with all three mandatory embedded blocks
