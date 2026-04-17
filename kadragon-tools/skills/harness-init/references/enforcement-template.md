@@ -225,6 +225,95 @@ done < "$FILE"
 
 **When grep is still fine:** Single invocations on whole files (`grep -q 'pattern' file.txt`) fork once — no performance concern. The problem is grep *inside loops*.
 
+## Agent Teams Quality Gates (Layer 1 extension)
+
+If Agent Teams is enabled (see `references/agent-teams-onboarding.md`), three team-lifecycle hooks give the harness mechanical control points that do not exist for single-session work. Non-zero exit with code `2` sends feedback back to the agent and blocks the event.
+
+```json
+{
+  "hooks": {
+    "TaskCreated": [
+      {"hooks": [{"type": "command", "command": "bash .claude/hooks/task-created-contract.sh"}]}
+    ],
+    "TaskCompleted": [
+      {"hooks": [{"type": "command", "command": "bash .claude/hooks/task-completed-criteria.sh"}]}
+    ],
+    "TeammateIdle": [
+      {"hooks": [{"type": "command", "command": "bash .claude/hooks/teammate-idle-nudge.sh"}]}
+    ]
+  }
+}
+```
+
+### `task-created-contract.sh` — enforce Spawn Prompt Contract
+
+Reject any task whose prompt is missing any of the 4 contract fields (Objective, Output format, Tools to use, Boundaries). This turns `references/delegation-template.md` → "Spawn Prompt Contract" into a mechanical check.
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+payload=$(cat)
+prompt=$(jq -r '.task.prompt // empty' <<<"$payload")
+
+missing=()
+for field in "Objective:" "Output format:" "Tools to use:" "Boundaries:"; do
+    [[ "$prompt" =~ $field ]] || missing+=("$field")
+done
+
+if (( ${#missing[@]} > 0 )); then
+    echo "Spawn Prompt Contract violated. Missing fields: ${missing[*]}" >&2
+    echo "See references/delegation-template.md → Spawn Prompt Contract. Re-spawn with all 4 fields." >&2
+    exit 2
+fi
+exit 0
+```
+
+### `task-completed-criteria.sh` — enforce eval-criteria
+
+Reject TaskCompleted if the task belongs to a Sprint Contract and acceptance criteria are not all checked off in `tasks.md`. Cheap mechanical gate against the "declared done, actually partial" failure mode.
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+payload=$(cat)
+task_id=$(jq -r '.task.id // empty' <<<"$payload")
+[[ -z "$task_id" ]] && exit 0
+[[ -f "tasks.md" ]] || exit 0
+
+# ADAPT: match tasks.md schema for this project.
+# Fail if any "- [ ]" remains under the matching task section.
+if awk -v id="$task_id" '
+    $0 ~ "^# " && $0 ~ id { in_section=1; next }
+    in_section && /^# / { in_section=0 }
+    in_section && /^- \[ \]/ { found=1 }
+    END { exit !found }
+' tasks.md; then
+    echo "TaskCompleted blocked: tasks.md still has unchecked acceptance criteria for $task_id" >&2
+    exit 2
+fi
+exit 0
+```
+
+### `teammate-idle-nudge.sh` — prevent premature stop
+
+When a teammate goes idle with open tasks in its assigned scope, send a nudge instead of letting it stop. Targets the "context anxiety" pattern (see `references/workflows-template.md`).
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+payload=$(cat)
+teammate=$(jq -r '.teammate.name // empty' <<<"$payload")
+open_count=$(jq -r '[.tasks[] | select(.owner == "'"$teammate"'" and .status != "completed")] | length' <<<"$payload")
+
+if (( open_count > 0 )); then
+    echo "$teammate going idle with $open_count open task(s). Continue or explicitly handoff via SendMessage." >&2
+    exit 2
+fi
+exit 0
+```
+
+**Skip these hooks if Agent Teams is not enabled** — the events never fire and the scripts are inert, but keep the `.claude/settings.json` clean.
+
 ## Layer 2: Pre-commit Checks
 
 Wire golden principle checks into git pre-commit hooks or the project's existing pre-commit framework.

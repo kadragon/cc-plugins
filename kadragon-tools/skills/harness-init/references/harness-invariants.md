@@ -18,6 +18,7 @@ value changes here, update both skills in the same commit.
 | `backlog.md` | Items use `[ ]` / `[>]` / `[x]` checkboxes under `##` headings | init Step 4 | sync C + D-1 |
 | `tasks.md` | Fields: `# Title`, `status:`, `Scope`, `Acceptance Criteria`, `Evaluator Feedback` | init Step 4 | sync C + D-1 |
 | `docs/architecture.md` etc. | Referenced from AGENTS.md docs index | init Step 4 | `validate-harness.sh` |
+| `.claude/agents/{role}.md` | YAML frontmatter (`name`, `description`, `tools`, `model`) + body with Objective / Spawn Prompt Contract / Effort Tier / Exit Criteria | init Step 4c (if multi-agent) | manual review |
 
 ## AGENTS.md Size Policy
 
@@ -47,6 +48,18 @@ temporary / task-specific instructions.
 
 Prefer modifying or removing outdated entries over appending. When unsure, add
 a short inline `TODO:` comment rather than inventing guidance.
+
+## Spawn Prompt Contract (shared invariant)
+
+Every subagent/teammate spawn MUST carry all four fields:
+**Objective**, **Output format**, **Tools to use**, **Boundaries**.
+
+Enforced by:
+- `references/delegation-template.md` → "Spawn Prompt Contract" (documents it)
+- `references/teammate-role-template.md` (each role's body restates it)
+- `references/enforcement-template.md` → `task-created-contract.sh` (blocks at `TaskCreated`)
+
+When this contract changes, update all three places plus any existing `.claude/hooks/task-created-contract.sh` in target repos.
 
 ## Sweep Trigger Policy
 

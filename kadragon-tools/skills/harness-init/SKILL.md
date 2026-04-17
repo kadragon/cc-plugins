@@ -1,6 +1,6 @@
 ---
 name: harness-init
-version: 0.3.0
+version: 0.4.0
 description: |
   This skill should be used when the user asks to "set up a harness", "initialize agent infrastructure", "bootstrap AGENTS.md", "create agent rules", "set up Claude Code for a new repo", "하네스 초기화", "에이전트 설정", or wants to make a repository agent-ready. This skill should also be used when the user mentions wanting consistent AI-assisted development, delegation to sub-agents, automated code quality checks, or structured agent workflows for a codebase. This skill is repo-scoped — it does NOT modify global ~/.claude/CLAUDE.md.
 ---
@@ -133,13 +133,32 @@ Naming patterns, coding standards, framework-specific rules. Only include conven
 How work gets done. Read `references/workflows-template.md` for the standard six workflows (plan/code/draft/constrain/sweep/explore) and adapt to the project. Each workflow that modifies code has explicit delegation checkpoints built into its steps — delegation is not a separate document to "consult" but a mandatory gate within the workflow itself.
 
 #### `docs/delegation.md`
-Sub-agent routing table and context manifest. Read `references/delegation-template.md` for the full template including model selection per role. All triggers in the routing table must be **objective and measurable** — never use subjective conditions like "unfamiliar module" that the agent can rationalize away.
+Sub-agent routing table and context manifest. Read `references/delegation-template.md` for the full template including:
+- **Pattern selection flowchart** (Orchestrator-Subagent / Generator-Verifier / Agent Teams / when NOT to delegate) — paste at the top
+- **Spawn Prompt Contract** — every spawn must include Objective, Output format, Tools to use, Boundaries
+- **Effort Tier** table (Simple / Comparison / Complex) embedded in spawn prompts
+- Model selection per role
+
+All triggers in the routing table must be **objective and measurable** — never use subjective conditions like "unfamiliar module" that the agent can rationalize away. For the full catalogue of coordination patterns, add `references/coordination-patterns.md` as an on-demand reference.
 
 #### `docs/eval-criteria.md`
 Product-level evaluation criteria with the Generator-Evaluator separation principle. Includes the Sprint Contract pattern (pre-implementation "done" negotiation), evaluator self-deception countermeasures, and calibration methodology. Read `references/eval-criteria-template.md` for the template.
 
 #### `docs/runbook.md`
 Build, test, deploy commands. Common failure modes and fixes. Environment setup. Read `references/runbook-template.md` for the template.
+
+### Step 4c: Define Reusable Roles (if multi-agent)
+
+Skip this step if the project will only ever use a single session. Otherwise, create `.claude/agents/{role}.md` for each recurring role. Claude Code reuses these files for both subagent spawns and Agent Teams teammates — define once, use both ways.
+
+Read `references/teammate-role-template.md` for schema and a starter pack (implementer, explorer, qa-verifier, product-evaluator). Each role MUST include:
+
+- YAML frontmatter: `name`, `description` (measurable triggers only), `tools` allowlist, `model`
+- Body sections: **Objective**, **Spawn Prompt Contract** (4 fields), **Effort Tier**, **Exit Criteria**
+
+The routing table in `docs/delegation.md` cites roles by name — the role file body is appended to the spawn prompt automatically.
+
+Also write a `references/handoff-template.md`-style `handoff-{feature}.md` schema reference into `docs/workflows.md` for multi-session work. Handoff files are deferred Spawn Prompt Contracts.
 
 ### Step 4b: Create Sprint / Backlog Files
 
@@ -189,7 +208,7 @@ Each error message becomes a micro-instruction that tells the agent exactly how 
 Build a multi-layer enforcement chain so golden principles are mechanically guaranteed. Read `references/enforcement-template.md` for detailed templates per layer.
 
 **Four layers (defense in depth):**
-1. **Real-time hooks** (`.claude/settings.json`) — Catch violations at edit time
+1. **Real-time hooks** (`.claude/settings.json`) — Catch violations at edit time. If Agent Teams is enabled, also wire `TaskCreated` / `TaskCompleted` / `TeammateIdle` hooks — see `references/enforcement-template.md` → "Agent Teams Quality Gates". The `TaskCreated` hook mechanically enforces the 4-field Spawn Prompt Contract.
 2. **Pre-commit checks** — Block commits with unfixed violations
 3. **CI gate** — Block merges on failure
 4. **PR template** (optional) — Checklist derived from golden principles
@@ -232,6 +251,14 @@ bash ${CLAUDE_PLUGIN_ROOT}/skills/harness-sync/scripts/symlink-guard.sh
 
 After init, verify: `readlink .agents/skills` prints `../.claude/skills` (POSIX), **or** on Windows with `core.symlinks=false`, `.agents/skills` is a regular text file whose content is exactly `../.claude/skills`. Both forms pass validation.
 
+### Step 8b: Agent Teams Onboarding (optional)
+
+Enable Claude Code's experimental Agent Teams only if the project has real parallel workloads (cross-layer refactors, multi-lens code review, adversarial debugging). Read `references/agent-teams-onboarding.md` for the decision checklist and full setup.
+
+If enabled, also add the adversarial debugging playbook as an on-demand workflow: `references/competing-hypotheses-playbook.md`. It maps to a `debate` workflow in `docs/workflows.md` — invoked rarely, high value when stakes justify token cost.
+
+Skip this step for solo workloads and most CRUD apps. Agent Teams carries a 3-5× token cost and meaningful coordination overhead.
+
 ### Step 9: Validate
 
 Run `scripts/validate-harness.sh` against the target project to verify all artifacts are complete and consistent. The script checks:
@@ -270,15 +297,20 @@ After setup, walk the user through what was created. Key points:
 ### Reference Files
 
 Detailed templates and guides in `references/`:
-- **`references/harness-invariants.md`** — Shared contract between `harness-init` and `harness-sync` (thresholds, file layouts, edit policy, reconciliation contract)
+- **`references/harness-invariants.md`** — Shared contract between `harness-init` and `harness-sync` (thresholds, file layouts, edit policy, Spawn Prompt Contract, reconciliation contract)
 - **`references/golden-principles-guide.md`** — Discovery questions, tech-stack examples, principle-to-enforcement mapping
 - **`references/architecture-template.md`** — Architecture doc structure with a concrete Next.js example
 - **`references/conventions-template.md`** — Naming, code style, framework-specific rules, API and git conventions
 - **`references/runbook-template.md`** — Build/test/deploy commands, common failures, environment variables
-- **`references/workflows-template.md`** — Six workflows (plan/code/draft/constrain/sweep/explore) with permitted side-effects
-- **`references/delegation-template.md`** — 3-tier routing table, context manifests, model selection per role
+- **`references/workflows-template.md`** — Six workflows (plan/code/draft/constrain/sweep/explore) + optional `debate` workflow + File Ownership Declaration for multi-agent
+- **`references/delegation-template.md`** — Pattern selection flowchart, Spawn Prompt Contract, Effort Tier, routing table, model selection
+- **`references/coordination-patterns.md`** — Five patterns (Generator-Verifier / Orchestrator-Subagent / Agent Teams / Message Bus / Shared State) with when-to-use and failure modes
+- **`references/teammate-role-template.md`** — `.claude/agents/{role}.md` schema + starter pack (implementer/explorer/qa-verifier/product-evaluator)
+- **`references/handoff-template.md`** — `handoff-{feature}.md` schema for clean context resets across sessions
+- **`references/agent-teams-onboarding.md`** — Opt-in setup for Claude Code Agent Teams (experimental) with decision checklist
+- **`references/competing-hypotheses-playbook.md`** — Adversarial debugging workflow for high-stakes root-cause investigation
 - **`references/eval-criteria-template.md`** — Grading rubrics, calibration examples, evaluator execution protocol
-- **`references/enforcement-template.md`** — 4-layer enforcement chain with CI/hook/pre-commit templates
+- **`references/enforcement-template.md`** — 4-layer enforcement chain + Agent Teams quality gates (TaskCreated/TaskCompleted/TeammateIdle)
 - **`references/sweep-template.md`** — Ecosystem-specific adaptation guide for the sweep script
 - **`references/backlog-template.md`** — Minimal `backlog.md` schema (checkbox states, headings)
 - **`references/tasks-template.md`** — `tasks.md` schema for active sprints (status field, required sections)

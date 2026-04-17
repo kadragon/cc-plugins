@@ -29,6 +29,18 @@ Check objective delegation triggers from `docs/delegation.md`:
 - Does the file match a critical path pattern? → Delegate to Analysis agent.
 If none of the triggers match, proceed directly.
 
+**Step 1.5: File Ownership Declaration (multi-agent only)**
+If the sprint will spawn ≥2 parallel subagents OR use Agent Teams, the lead MUST declare file-ownership globs per role in `tasks.md` BEFORE spawning anyone. Overlapping globs cause silent overwrites. Cross-boundary edits require explicit lead approval — teammates do not cross globs unilaterally.
+
+```markdown
+## File Ownership
+- implementer-A: `src/api/users/**`, `tests/api/users/**`
+- implementer-B: `src/web/users/**`, `tests/web/users/**`
+- qa-verifier:   read-only (any path), writes only to `docs/eval/**`
+```
+
+Skip this step for single-agent work.
+
 **Step 2: Sprint Contract (negotiation with evaluator)**
 Before writing code, define what "done" looks like in concrete, testable terms. If the project uses a separate evaluator agent, the generator proposes scope and the evaluator confirms the criteria are testable. If no separate evaluator, write the contract yourself — the discipline of writing testable criteria before coding is what matters.
 
@@ -84,6 +96,12 @@ Fight entropy. Run between features or on a schedule.
 ## `explore` — Research
 
 State the question → research/prototype → report options and tradeoffs → **do not commit**. If approved, flows into `plan` or `code`.
+
+## `debate` — Competing Hypotheses (optional, on-demand)
+
+Adversarial multi-agent root-cause investigation. Use ONLY when a first-pass single-agent diagnosis failed on a high-stakes bug. Requires Agent Teams. Full procedure in `references/competing-hypotheses-playbook.md`.
+
+Not a default workflow. Most projects invoke it <1×/month.
 
 ---
 

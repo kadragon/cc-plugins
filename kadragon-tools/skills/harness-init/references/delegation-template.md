@@ -2,6 +2,50 @@
 
 The orchestrator plans, routes, and verifies. It does NOT do the heavy lifting itself.
 
+## Pattern Selection (before routing)
+
+Before picking a delegation target, pick a coordination **pattern**. The routing table below assumes Orchestrator-Subagent by default; other patterns live in `references/coordination-patterns.md`.
+
+```
+Q1. Does the task decompose into >1 genuinely parallel subtask?
+    No  → single session. No delegation. Stop.
+    Yes → Q2.
+Q2. Do subtasks need to share findings mid-flight (not just report at end)?
+    No  → Orchestrator-Subagent (this doc's default).
+    Yes → Q3.
+Q3. Is there an objective written pass/fail criterion?
+    Yes → Generator-Verifier (wrap Q2's answer with a verifier gate).
+    No  → Agent Teams (see references/agent-teams-onboarding.md) if parallel
+          exploration genuinely helps — otherwise reconsider multi-agent.
+```
+
+**When NOT to delegate at all:** all agents need identical context, heavy inter-agent dependencies, real-time turn-taking, or <3 files / <200 LOC change. Most coding work falls here.
+
+## Spawn Prompt Contract (all 4 fields mandatory)
+
+Every subagent/teammate spawn — without exception — MUST pass these four fields. Missing any → the `TaskCreated` hook rejects the spawn. This contract prevents the single largest multi-agent failure mode: vague instructions causing duplicated or misaligned work.
+
+```markdown
+- Objective: {what specifically should the subagent accomplish?}
+- Output format: {diff / report / table / backlog item / verdict — be concrete}
+- Tools to use: {subset of the role's allowlist to prioritize}
+- Boundaries: {files/modules/workflows this spawn MUST NOT touch}
+```
+
+Source: Anthropic "How we built our multi-agent research system" (2026). Failure example: "research the semiconductor shortage" spawned subagents that duplicated 2021 automotive vs 2025 supply chain research with no division of labor — fixed by enforcing the 4-field contract.
+
+## Effort Tier (embed in spawn prompt)
+
+Agents systematically mis-judge effort. Tag each spawn with a tier so the subagent calibrates tool-call budget:
+
+| Tier | Use for | Tool calls | Parallel subagents | Model default |
+|------|---------|------------|--------------------|---------------|
+| **Simple** | Known-answer lookup, single file edit, mechanical check | 3-10 | 1 | haiku/sonnet |
+| **Comparison** | Weighing 2-4 options, multi-file code review, cross-module check | 10-15 per agent | 2-4 | sonnet |
+| **Complex** | Root cause unknown, architectural decision, cross-layer refactor | 15+ per agent | up to 5 | sonnet + opus lead |
+
+Complex tier requires the lead to **explicitly justify** team size in the spawn prompt. Default hard cap: 5 parallel agents.
+
 ## Routing Table Structure
 
 Organize into three tiers:
@@ -152,3 +196,11 @@ These delegations are **embedded as named steps in `docs/workflows.md`**, not ju
 - **Structural fix** (typo, missing import) → apply in current cycle.
 - **Behavioral change** (new feature, changed logic) → add to `backlog.md`. Never apply directly.
 - **Contradicts design doc** → report both options to user. Do not choose.
+
+## Reusable Roles
+
+Define each recurring role once as `.claude/agents/{role}.md`. The routing table cites roles by name; Claude Code reuses the same file for both subagent and teammate spawns. See `references/teammate-role-template.md` for the schema and starter pack (implementer, explorer, qa-verifier, product-evaluator).
+
+## Handoff Across Sessions
+
+For work that spans sessions or approaches context limits, write a handoff file with the schema in `references/handoff-template.md`. A handoff IS a deferred Spawn Prompt Contract — its "Next Agent Contract" section mirrors the 4 fields above.
