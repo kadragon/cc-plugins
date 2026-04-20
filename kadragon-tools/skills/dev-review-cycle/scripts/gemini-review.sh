@@ -10,22 +10,31 @@ set -euo pipefail
 
 BASE_BRANCH="${1:?Usage: gemini-review.sh <base_branch>}"
 
-# Embed the diff directly in the prompt so Gemini doesn't need to call tools.
-# This avoids tool-call latency and hanging in headless mode.
-GIT_DIFF=$(git diff "${BASE_BRANCH}...HEAD" 2>/dev/null || git diff "${BASE_BRANCH}" 2>/dev/null || true)
-
-if [ -z "$GIT_DIFF" ]; then
+# Gate on empty diff up front so we don't spin up Gemini for nothing.
+# The diff itself is fetched by Gemini via its shell tool — embedding large
+# diffs directly in the prompt overflows Gemini's token limit.
+CHANGED_FILES=$(git diff "${BASE_BRANCH}...HEAD" --name-only 2>/dev/null \
+  || git diff "${BASE_BRANCH}" --name-only 2>/dev/null || true)
+if [ -z "$CHANGED_FILES" ]; then
   echo "No changes detected against ${BASE_BRANCH} — skipping Gemini review." >&2
   exit 0
 fi
 
-REVIEW_PROMPT="You are reviewing a proposed code change against branch ${BASE_BRANCH}.
+REPO_ROOT=$(git rev-parse --show-toplevel)
+CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
 
-Here is the full diff:
+REVIEW_PROMPT="You are reviewing a proposed code change in the repository at ${REPO_ROOT}.
 
-\`\`\`diff
-${GIT_DIFF}
-\`\`\`
+## How to obtain the diff
+
+Use your shell tool from within ${REPO_ROOT} to compare the current branch (${CURRENT_BRANCH}) against ${BASE_BRANCH}. Run these commands yourself — do NOT ask the user for the diff:
+
+1. \`git diff ${BASE_BRANCH}...HEAD --stat\` — get an overview of which files changed.
+2. \`git diff ${BASE_BRANCH}...HEAD -- <path>\` — inspect specific files. Prefer reviewing per-file or per-hunk instead of loading the whole diff at once if the change is large.
+3. \`git log ${BASE_BRANCH}..HEAD --oneline\` — understand commit intent.
+4. Read full file contents when a hunk's context is insufficient.
+
+If \`${BASE_BRANCH}...HEAD\` fails (e.g., detached HEAD or missing merge-base), fall back to \`git diff ${BASE_BRANCH}\`.
 
 ## What to flag
 
