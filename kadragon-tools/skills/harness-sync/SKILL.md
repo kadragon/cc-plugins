@@ -33,8 +33,9 @@ All thresholds, paths, and contracts live in `harness-init`'s
 ## Execution Order
 
 A first (requires human judgment). B/C/D/E/F are independent and may be parallelized.
-Scripts (B, C, E, F) always exit 0 on informational results — so a parallel sibling failure
+Scripts (C, E, F) always exit 0 on informational results — so a parallel sibling failure
 cannot cancel other checks. Non-zero exit means a hard failure that should stop the batch.
+B (sync-claude-md) exits 1/2 as part of its normal remediation path and is exempt from this contract.
 Silent unless an action is taken or an error occurs.
 
 ---

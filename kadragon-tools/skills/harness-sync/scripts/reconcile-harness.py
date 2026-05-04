@@ -6,7 +6,7 @@ Syncs tasks.md status into backlog.md and reports sprint/backlog state.
 
 Exit codes:
   0  Normal completion
-  1  Error (written to stderr)
+  1  Unexpected exception (uncaught)
 """
 
 import re
